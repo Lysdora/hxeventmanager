@@ -61,7 +61,7 @@ class CustomBookingsFieldsTable extends WP_List_Table
 
         /* -- Ordering parameters -- */
             //Parameters that are going to be used to order the result
-            $orderby = !empty($_GET["orderby"]) ? mysql_real_escape_string($_GET["orderby"]) : 'field_ID';
+            $orderby = !empty($_GET["orderby"]) ? mysql_real_escape_string($_GET["orderby"]) : 'field_label';
             $order = !empty($_GET["order"]) ? mysql_real_escape_string($_GET["order"]) : 'ASC';
             if(!empty($orderby) & !empty($order))
             {
@@ -122,25 +122,25 @@ class CustomBookingsFieldsTable extends WP_List_Table
     function column_field_label($item)
     {
         $actions = array(
-            'delete'    => sprintf('<a href="?page=%s&action=%s&field=%s">Delete</a>',$_REQUEST['page'],'delete',$item->field_ID),
+            'edit'      => sprintf('<a href="edit.php?post_type='.EM_POST_TYPE_EVENT.'&page=%s&action=%s&field=%s">'.__('Edit').'</a>',$_REQUEST['page'],'edit',$item->field_slug),
+            'delete'    => sprintf('<a href="edit.php?post_type='.EM_POST_TYPE_EVENT.'&page=%s&action=%s&field=%s" class="button_delete">'.__('Delete').'</a>',$_REQUEST['page'],'delete',$item->field_slug)
         );
         
         //Return the title contents
-        return sprintf('%1$s <span style="color:silver">(id:%2$s)</span>%3$s',
+        return sprintf('%1$s %2$s',
             /*$1%s*/ $item->field_label,
-            /*$2%s*/ $item->field_ID,
-            /*$3%s*/ $this->row_actions($actions)
+            /*$2%s*/ $this->row_actions($actions)
         );
     }
 
     function column_field_required($item)
     {
-        return sprintf('<input type="checkbox" name="'.$item->field_slug.'" value="%d" %s />', $item->field_required, ($item->field_required == '1' ? 'checked' : ''));
+        return sprintf('<input disabled type="checkbox" name="'.$item->field_slug.'" value="%d" %s />', $item->field_required, ($item->field_required == '1' ? 'checked' : ''));
     }
 
     function column_field_active($item)
     {
-        return sprintf('<input type="checkbox" name="'.$item->field_slug.'" value="%d" %s />', $item->field_active, ($item->field_active == '1' ? 'checked' : ''));
+        return sprintf('<input disabled type="checkbox" name="'.$item->field_slug.'" value="%d" %s />', $item->field_active, ($item->field_active == '1' ? 'checked' : ''));
     }
 
     function generateURL($action, $text, $action_value)

@@ -7,3 +7,12 @@
     $fieldstable->display();
 ?>
 </div>
+<script type="text/javascript">
+jQuery(function($)
+{
+    $('.button_delete').on('click', function(event)
+    {
+        return confirm('<?php  _e('Are you sure you want to delete this field? All data associated will also be erased!') ?>');
+    });
+})
+</script>

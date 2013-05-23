@@ -31,6 +31,9 @@ License: GPL2
 define('CB_PLUGIN_PATH', plugin_dir_path(__FILE__));
 //define('HXEVENTS_DB_VERSION', 4); //this should be set to the newest db version
 
+if(!isset($_COOKIE['PHPSESSID']))
+    session_start();
+
 add_action('em_booking_form_custom', array('CustomBookingsForm', 'custom_form'));
 add_action('em_booking_save_pre', array('CustomBookingsForm', 'pre_save_booking'));
 add_filter('em_booking_validate', array('CustomBookingsForm', 'validate_booking'), 10, 2);
@@ -64,71 +67,33 @@ class CustomBookings
 
     function bookings_table_cols_template($cols, $EM_Bookings_Table)
     {
-        $cols['user_cs_name'] = __('CS Nick');
-        $cols['user_gender'] = __('Gender');
+        $custom_fields = CustomBookingsForm::getCustomFormFields();
+
+        foreach($custom_fields as $field)
+        {
+            $cols[$field->field_slug] = $field->field_label;            
+        }
 
         return $cols;
     }
 
     function bookings_table_rows_col($val, $col, $EM_Booking, $EM_Bookings_Table, $csv)
     {
-        //error_log(print_r($EM_Booking->booking_meta, true));
-        if(array_key_exists($col, $EM_Booking->booking_meta['custom_form_fields']))
-            return $EM_Booking->booking_meta['custom_form_fields'][$col]['value'];
-        else
-            return __('Missing value for column '.$col);
+        $cb_custom_field_values = CustomBookingsForm::getCustomFormValues($EM_Booking->event_id, $EM_Booking->person_id);
+
+        foreach($cb_custom_field_values as $row)
+        {
+            if($row->field_slug == $col)
+                return self::process_field_data_and_return($row);
+        }
+            return print($col);
     }
 
     function bookings_single_custom($EM_Booking)
     {
-    ?>
-    <script type="text/javascript">
-        jQuery(document).ready( function($){
-            $('#em-booking-submit-modify').click(function(){
-                $('#em-booking-custom-user-gender-details').hide();
-                $('#em-booking-custom-user-gender-edit').show();
-                $('#em-booking-custom-user-cs-name-details').hide();
-                $('#em-booking-custom-user-cs-name-edit').show();
-            });
-            $('#em-booking-submit-cancel').click(function(){
-                $('#em-booking-custom-user-gender-details').show();
-                $('#em-booking-custom-user-gender-edit').hide();
-                $('#em-booking-custom-user-cs-name-details').show();
-                $('#em-booking-custom-user-cs-name-edit').hide();
-            });
-        });
-    </script>               
-    <hr />
-        <h4><?php _e('Custom Fields') ?></h4>
-            <table>
-                <tr>
-                    <td><strong><?php _e('Gender') ?> :</strong></td>
-                    <td id="em-booking-custom-user-gender-details"><?php echo $EM_Booking->booking_meta['custom_form_fields']['user_gender']['value'] ?></td>
-                    <td id="em-booking-custom-user-gender-edit" style="display: none;">
-                        <select name="custom[user_gender][value]" id="user_gender" class="">
-                            <option value="M" <?php if(!empty($_REQUEST['custom']['user_gender']['value']) && $_REQUEST['custom']['user_gender']['value'] == 'M') echo 'selected'; elseif($EM_Booking->booking_meta['custom_form_fields']['user_gender']['value'] == 'M') echo 'selected'; ?>><?php _e('Male') ?></option>
-                            <option value="F" <?php if(!empty($_REQUEST['custom']['user_gender']['value']) && $_REQUEST['custom']['user_gender']['value'] == 'F') echo 'selected'; elseif($EM_Booking->booking_meta['custom_form_fields']['user_gender']['value'] == 'F') echo 'selected'; ?>><?php _e('Female') ?></option>
-                        </select>
-                        <input type="hidden" name="custom[user_gender][type]" value="select" />
-                        <input type="hidden" name="custom[user_gender][options]" value="M,F" />
-                        <input type="hidden" name="custom[user_gender][label]" value="Gender" />
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>CS Nick :</strong></th>
-                    <td id="em-booking-custom-user-cs-name-details"><?php echo $EM_Booking->booking_meta['custom_form_fields']['user_cs_name']['value'] ?></td>
-                    <td id="em-booking-custom-user-cs-name-edit" style="display: none;">
-                        <input type="text" name="custom[user_cs_name][value]" id="user_cs_name" class="input" 
-                        value="<?php 
-                        if(!empty($_REQUEST['custom']['user_cs_name'])) 
-                            echo esc_attr($_REQUEST['custom']['user_cs_name']); 
-                        else 
-                            echo $EM_Booking->booking_meta['custom_form_fields']['user_cs_name']['value']; ?>"  />
-                        <input type="hidden" name="custom[user_cs_name][type]" value="text" />
-                    </td>
-                </tr>
-            </table>
-    <?php
+        $custom_fields = CustomBookingsForm::getCustomFormValues($EM_Booking->event_id, $EM_Booking->person_id);
+
+        include(CB_PLUGIN_PATH . 'views/booking_edit.php');
     }
 
     function show_message($message, $error = false)
@@ -147,6 +112,18 @@ class CustomBookings
 
         echo "<p><strong>".$message."</strong></p></div>";
     }
+
+    function process_field_data_and_return($row)
+    {
+        $options = unserialize($row->field_options);
+
+        //error_log('options = '.print_r($options, true));
+
+        if(is_array($options) && array_key_exists($row->field_data, $options))
+            return $options[$row->field_data];
+        else
+            return $row->field_data;
+    }
 }
 
 class CustomBookingsForm
@@ -155,64 +132,125 @@ class CustomBookingsForm
     function custom_form($EM_Event)
     {
         //error_log(print_r($EM_Event, true));
-    ?>
-    <?php if( !is_user_logged_in() && apply_filters('em_booking_form_show_register_form',true) ): ?>
-        <?php //User can book an event without registering, a username will be created for them based on their email and a random password will be created. ?>
-        <input type="hidden" name="register_user" value="1" />
-        <p>
-            <label for='user_name'><?php _e('Name','dbem') ?></label>
-            <input type="text" name="user_name" id="user_name" class="input" value="<?php if(!empty($_REQUEST['user_name'])) echo esc_attr($_REQUEST['user_name']); ?>" />
-        </p>
-        <p>
-            <label for='dbem_phone'><?php _e('Phone','dbem') ?></label>
-            <input type="text" name="dbem_phone" id="dbem_phone" class="input" value="<?php if(!empty($_REQUEST['dbem_phone'])) echo esc_attr($_REQUEST['dbem_phone']); ?>" />
-        </p>
-        <p>
-            <label for='user_email'><?php _e('E-mail','dbem') ?></label> 
-            <input type="text" name="user_email" id="user_email" class="input" value="<?php if(!empty($_REQUEST['user_email'])) echo esc_attr($_REQUEST['user_email']); ?>"  />
-        </p>
-     <p>
-            <label for='custom[user_cs_name]'><?php _e('CouchSurfing Username','dbem') ?></label> 
-            <input type="text" name="custom[user_cs_name][value]" id="user_cs_name" class="input" value="<?php if(!empty($_REQUEST['custom']['user_cs_name'])) echo esc_attr($_REQUEST['custom']['user_cs_name']); ?>"  />
-            <input type="hidden" name="custom[user_cs_name][type]" value="text" />
-    </p>
-     <p>
-            <label for='custom[user_gender]'><?php _e('Gender','dbem') ?></label>
-            <select name="custom[user_gender][value]" id="user_gender" class="">
-                <option value="M" <?php if(!empty($_REQUEST['custom']['user_gender']['value']) && $_REQUEST['custom']['user_gender']['value'] == 'M') echo 'selected'; ?>><?php _e('Male') ?></option>
-                <option value="F" <?php if(!empty($_REQUEST['custom']['user_gender']['value']) && $_REQUEST['custom']['user_gender']['value'] == 'F') echo 'selected'; ?>><?php _e('Female') ?></option>
-            </select>
-            <input type="hidden" name="custom[user_gender][type]" value="select" />
-            <input type="hidden" name="custom[user_gender][options]" value="M,F" />
-            <input type="hidden" name="custom[user_gender][label]" value="Gender" />
-    </p>
-           <?php do_action('em_register_form'); //careful if making an add-on, this will only be used if you're not using custom booking forms ?>                  
-    <?php endif; ?>     
-    <p>
-        <label for='booking_comment'><?php _e('Comment', 'dbem') ?></label>
-        <textarea name='booking_comment' rows="2" cols="20"><?php echo !empty($_REQUEST['booking_comment']) ? esc_attr($_REQUEST['booking_comment']):'' ?></textarea>
-    </p>
-    <?php
+        $custom_fields = self::getCustomFormFields();
+        include(CB_PLUGIN_PATH . 'views/booking_form.php');
     }
 
     function pre_save_booking($EM_Booking)
     {
-        foreach($_REQUEST['custom'] as $custom_field_name => $custom_field_data)
+        global $wpdb;
+
+        $data['field_data_ID'] = 'NULL';
+        $data['user_ID'] = $EM_Booking->person_id;
+        $data['event_ID'] = $EM_Booking->event_id;
+
+        foreach($_REQUEST['cb'] as $custom_field_slug => $custom_field_data)
         {
-            $EM_Booking->booking_meta['custom_form_fields'][$custom_field_name] = array('type' => $custom_field_data['type'], 'value' => $custom_field_data['value'], 'label' => $custom_field_data['label']);
-            isset($custom_field_data['options']) ? $EM_Booking->booking_meta['custom_form_fields'][$custom_field_name]['options'] = explode(',', $custom_field_data['options']) : NULL;
+            $data['field_data'] = $custom_field_data;
+
+            //check if we are creating a new entry or updating an existing one
+            if($_REQUEST['page'] == 'events-manager-bookings')
+            {
+                //it's an edit
+                $where = array('user_ID' => $EM_Booking->person_id, 'event_ID' => $EM_Booking->event_id, 'field_slug' => $custom_field_slug);
+                $data = array('field_data' => $custom_field_data);
+
+                if($wpdb->update($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data, $where) === false)
+                {
+                    error_log('last query after update: '.$wpdb->last_query);
+                    $error = new WP_Error('dberror', 'Couldn\'t update custom field with slug "'.$custom_field_slug.'"');
+                    CustomBookings::show_message($error->get_error_message(), true);
+                    return false;
+                }
+            }
+            else
+            {
+                //it's a new entry
+                $data['field_slug'] = $custom_field_slug;
+                if(!$wpdb->insert($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data))
+                {
+                    $error = new WP_Error('dberror', 'Couldn\'t insert custom field with slug "'.$custom_field_slug.'"');
+                    CustomBookings::show_message($error->get_error_message(), true);
+                    return false;
+                }
+            }
         }
+
+        return true;
     }
 
     function validate_booking($result, $EM_Booking)
     {
-        if(empty($_REQUEST['custom']['user_cs_name']['value']))
+        global $wpdb;
+        $custom_fields = self::getCustomFormFields();
+
+        foreach($custom_fields as $field)
         {
-            $EM_Booking->add_error(__('No CS Nickname given'));
-            return false;
+            if($field->field_required == '1')
+            {
+                if(!isset($_REQUEST['cb'][$field->field_slug]) || trim($_REQUEST['cb'][$field->field_slug]) == '')
+                {
+                    $EM_Booking->add_error(__(sprintf('Field "%s" cannot be empty!', $field->field_label, $field->field_slug)));
+                    $result = false;
+                }                
+            }
         }
 
         return $result;
+    }
+
+    function getCustomFormFields()
+    {
+        global $wpdb;
+        $tablenames = CustomBookings::$tablenames;
+
+        if(!isset($_SESSION['cb_custom_fields_last_updated']))
+            $_SESSION['cb_custom_fields_last_updated'] = get_option('cb_custom_fields_last_updated');
+
+        if((isset($_SESSION['cb_custom_fields_last_updated']) && !empty($_SESSION['cb_custom_fields_last_updated']) && isset($_SESSION['cb_custom_fields_last_fetched'])) 
+            && ($_SESSION['cb_custom_fields_last_updated'] > $_SESSION['cb_custom_fields_last_fetched']))
+        {
+            return $_SESSION['cb_custom_form_fields'];
+        }
+        else
+        {
+            $query = $wpdb->prepare('SELECT * FROM '.$wpdb->prefix.$tablenames['fields'].' WHERE field_active = %d', 1);
+            $results = $wpdb->get_results($query);
+            $_SESSION['cb_custom_form_fields'] = $results;
+            $_SESSION['cb_custom_fields_last_fetched'] = time();
+
+            return $results;            
+        }
+    }
+
+    function getCustomFormField($field_slug, $output_type = OBJECT)
+    {
+        global $wpdb;
+        $tablenames = CustomBookings::$tablenames;
+
+        $query = $wpdb->prepare('SELECT * FROM '.$wpdb->prefix.$tablenames['fields'].' WHERE field_slug = %s', $field_slug);
+        $results = $wpdb->get_results($query, $output_type);
+
+        return $results;
+    }
+
+    function getCustomFormValues($event_ID, $user_ID)
+    {
+        global $wpdb;
+        $tablenames = CustomBookings::$tablenames;
+        $field_table = $wpdb->prefix.$tablenames['fields'];
+        $field_data_table = $wpdb->prefix.$tablenames['field_data'];
+
+        $query = $wpdb->prepare('SELECT '.$field_data_table.'.field_slug, '.$field_data_table.'.field_data, '.$field_table.'.field_label, '.$field_table.'.field_options, '.$field_table.'.field_type '.
+                                'FROM '.$field_data_table.' '.
+                                'JOIN '.$field_table.' '.
+                                'ON '.$field_data_table.'.field_slug = '.$field_table.'.field_slug '.
+                                'WHERE event_ID = %d AND user_ID = %d AND '.$field_table.'.field_active = %d', $event_ID, $user_ID, 1);
+        $results = $wpdb->get_results($query);
+
+        //error_log('last query = '.$wpdb->last_query);
+
+        return $results;            
     }
 }
 
@@ -229,6 +267,7 @@ class CustomBookingsFormEditor
                 break;
 
                 case 'update':
+                case 'edit':
                 self::update_field();
                 break;
 
@@ -245,11 +284,70 @@ class CustomBookingsFormEditor
 
     static function delete_field()
     {
+        global $wpdb;
+        $tablenames = CustomBookings::$tablenames;
 
+        if(!$wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['fields'].' WHERE field_slug = %s', $_GET['field'])))
+        {
+            CustomBookings::show_message('Field was NOT deleted (halted on first query)!', true);
+            include(CB_PLUGIN_PATH . 'views/form_editor.php');
+        }
+        if(!$wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['field_data'].' WHERE field_slug = %s', $_GET['field'])))
+        {
+            CustomBookings::show_message('Field was NOT deleted (halted on second query)!', true);
+            include(CB_PLUGIN_PATH . 'views/form_editor.php');
+        }
+        else
+        {
+            CustomBookings::show_message('Field was deleted!');
+            include(CB_PLUGIN_PATH . 'views/form_editor.php');
+        }
     }
 
     static function update_field()
     {
+        global $wpdb;
+
+        if(!isset($_POST['submit']))
+        {
+            $data = CustomBookingsForm::getCustomFormField($_GET['field'], ARRAY_A);
+            $data = $data[0];
+            error_log(print_r($data, true));
+            include(CB_PLUGIN_PATH . 'views/new_edit_field.php');
+        }
+        else
+        {
+            $tablenames = CustomBookings::$tablenames;
+            $data = $_POST;
+            unset($data['submit']);
+
+            $validation = self::validate_custom_field();
+            if($validation === true)
+            {
+                //validated, even!
+                $where = array('field_slug' => $data['field_slug']);
+                unset($data['field_type'], $data['field_options']);
+
+                if($wpdb->update($wpdb->prefix.$tablenames['fields'], $data, $where))
+                {
+                    $_SESSION['cb_custom_fields_last_updated'] = time();
+                    update_option('cb_custom_fields_last_updated', $_SESSION['cb_custom_fields_last_updated']);
+                    CustomBookings::show_message('Field updated!');
+                    include(CB_PLUGIN_PATH . 'views/form_editor.php');
+                }
+                else
+                {
+                    CustomBookings::show_message('Adding went wrong!', true);
+                    error_log('last query after updating field = '.$wpdb->last_query);
+                    include(CB_PLUGIN_PATH . 'views/new_edit_field.php');                                                
+                }
+            }
+            else
+            {
+                $errors = $validation;
+                include(CB_PLUGIN_PATH . 'views/new_edit_field.php');
+            }            
+        }
 
     }
 
@@ -262,7 +360,6 @@ class CustomBookingsFormEditor
 
             $tablenames = CustomBookings::$tablenames;
             $data = $_POST;
-            $data['field_ID'] = 'NULL';
             $data['field_slug'] = sanitize_title_with_dashes($data['field_label']);
             $data['field_options'] = self::process_field_options($data['field_options']);
             unset($data['submit']);
@@ -273,6 +370,8 @@ class CustomBookingsFormEditor
             {
                 CustomBookings::show_message('New Field added!');
                 include(CB_PLUGIN_PATH . 'views/form_editor.php');
+                $_SESSION['cb_custom_fields_last_updated'] = time();
+                update_option('cb_custom_fields_last_updated', $_SESSION['cb_custom_fields_last_updated']);
             }
             else
             {
@@ -289,5 +388,24 @@ class CustomBookingsFormEditor
     static function process_field_options($raw_options)
     {
         return serialize(preg_split('/\n|\r/', $raw_options, -1, PREG_SPLIT_NO_EMPTY));
+    }
+
+    static function validate_custom_field($data = false)
+    {
+        if($data === false)
+            $data = $_POST;
+
+        $errors = array();
+
+        if(!isset($data['field_label']) || trim($data['field_label']) == '')
+        {
+            $errors[] = __('Field Label can\'t be empty!');
+        }
+        if( ($data['type'] == 'select' || $data['type'] == 'checkbox') && (!isset($data['field_options']) || trim($data['field_options']) == ''))
+        {
+            $errors[] = __('With a dropdown or checkbox element the field options can\'t be 0');
+        }
+
+        return count($errors) > 1 ? $errors : true;
     }
 }

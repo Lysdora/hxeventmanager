@@ -15,7 +15,8 @@ if(!is_array($field->field_options))
                     </select>
                 
                 <?php elseif($field->field_type == 'checkbox'): ?>
-                    <input type="checkbox" name="cb[<?php echo $field->field_slug ?>]" id="cb-form-<?php echo $field->field_slug ?>" class="input" value="1" <?php if(!empty($_REQUEST['cb'][$field->field_slug]) && $_REQUEST['cb'][$field->field_slug] == '1') echo 'checked'; elseif(isset($field->processed_value) && $field->processed_value == '1') echo 'checked' ?> /> <span><?php echo $field->field_checkbox_label ?></span>
+                    <input type="checkbox" name="cb[<?php echo $field->field_slug ?>]" id="cb-form-<?php echo $field->field_slug ?>" class="input" value="1" <?php if(!empty($_REQUEST['cb'][$field->field_slug]) && $_REQUEST['cb'][$field->field_slug] == '1') echo 'checked'; elseif(isset($field->processed_value) && $field->processed_value == $field->field_checkbox_label) echo 'checked' ?> style="width: auto;" /> <span><?php echo $field->field_checkbox_label ?></span>
+                    <input type="hidden" name="cb_checkbox[<?php echo $field->field_slug ?>]" id="cb-form-checkbox-hidden-<?php echo $field->field_slug ?>" value="<?php echo isset($field->processed_value) ? $field->field_data : '0' ?>" />
 
                 <?php elseif($field->field_type == 'textarea'): ?>
                     <textarea name="cb[<?php echo $field->field_slug ?>]" id="cb-form-<?php echo $field->field_slug ?>"><?php if(!empty($_REQUEST['cb'][$field->field_slug])) echo esc_attr($_REQUEST['custom'][$field->field_slug]); elseif(isset($field->processed_value)) echo $field->processed_value ?></textarea>

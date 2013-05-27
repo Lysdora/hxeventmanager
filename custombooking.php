@@ -117,10 +117,14 @@ class CustomBookings
     {
         $options = unserialize($row->field_options);
 
-        //error_log('options = '.print_r($options, true));
+        error_log('row = '.print_r($row, true));
 
-        if(is_array($options) && array_key_exists($row->field_data, $options))
+        if(is_array($options) && count($options) > 0 && array_key_exists($row->field_data, $options))
             return $options[$row->field_data];
+        elseif($row->field_type == 'checkbox' && $row->field_data == '1')
+            return $row->field_checkbox_label;
+        elseif($row->field_type == 'checkbox' && ($row->field_data == '0' || $row->field_data == NULL))
+            return '--';
         else
             return $row->field_data;
     }
@@ -173,6 +177,39 @@ class CustomBookingsForm
                     CustomBookings::show_message($error->get_error_message(), true);
                     return false;
                 }
+            }
+        }
+
+        foreach($_REQUEST['cb_checkbox'] as $custom_field_slug => $custom_field_data)
+        {
+            if(!isset($_REQUEST['cb'][$custom_field_slug]))
+            {
+                $data['field_data'] = 0;
+                //check if we are creating a new entry or updating an existing one
+                if($_REQUEST['page'] == 'events-manager-bookings')
+                {
+                    //it's an edit
+                    $where = array('user_ID' => $EM_Booking->person_id, 'event_ID' => $EM_Booking->event_id, 'field_slug' => $custom_field_slug);
+
+                    if($wpdb->update($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data, $where) === false)
+                    {
+                        error_log('last query after update: '.$wpdb->last_query);
+                        $error = new WP_Error('dberror', 'Couldn\'t update custom field with slug "'.$custom_field_slug.'"');
+                        CustomBookings::show_message($error->get_error_message(), true);
+                        return false;
+                    }
+                }
+                else
+                {
+                    //it's a new entry
+                    $data['field_slug'] = $custom_field_slug;
+                    if(!$wpdb->insert($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data))
+                    {
+                        $error = new WP_Error('dberror', 'Couldn\'t insert custom field with slug "'.$custom_field_slug.'"');
+                        CustomBookings::show_message($error->get_error_message(), true);
+                        return false;
+                    }
+                }                            
             }
         }
 
@@ -241,7 +278,8 @@ class CustomBookingsForm
         $field_table = $wpdb->prefix.$tablenames['fields'];
         $field_data_table = $wpdb->prefix.$tablenames['field_data'];
 
-        $query = $wpdb->prepare('SELECT '.$field_data_table.'.field_slug, '.$field_data_table.'.field_data, '.$field_table.'.field_label, '.$field_table.'.field_options, '.$field_table.'.field_type '.
+        $query = $wpdb->prepare('SELECT '.$field_data_table.'.field_slug, '.$field_data_table.'.field_data, '.$field_table.'.field_label, '.
+                                $field_table.'.field_options, '.$field_table.'.field_type, '.$field_table.'.field_checkbox_label '.
                                 'FROM '.$field_data_table.' '.
                                 'JOIN '.$field_table.' '.
                                 'ON '.$field_data_table.'.field_slug = '.$field_table.'.field_slug '.
@@ -328,18 +366,23 @@ class CustomBookingsFormEditor
                 $where = array('field_slug' => $data['field_slug']);
                 unset($data['field_type'], $data['field_options']);
 
-                if($wpdb->update($wpdb->prefix.$tablenames['fields'], $data, $where))
+                if(!isset($data['field_required']))
+                    $data['field_required'] = 0;
+                if(!isset($data['field_active']))
+                    $data['field_active'] = 0;
+
+                if($wpdb->update($wpdb->prefix.$tablenames['fields'], $data, $where) === false)
+                {
+                    CustomBookings::show_message('Adding went wrong!', true);
+                    error_log('last query after updating field = '.$wpdb->last_query);
+                    include(CB_PLUGIN_PATH . 'views/new_edit_field.php');                                                
+                }
+                else
                 {
                     $_SESSION['cb_custom_fields_last_updated'] = time();
                     update_option('cb_custom_fields_last_updated', $_SESSION['cb_custom_fields_last_updated']);
                     CustomBookings::show_message('Field updated!');
                     include(CB_PLUGIN_PATH . 'views/form_editor.php');
-                }
-                else
-                {
-                    CustomBookings::show_message('Adding went wrong!', true);
-                    error_log('last query after updating field = '.$wpdb->last_query);
-                    include(CB_PLUGIN_PATH . 'views/new_edit_field.php');                                                
                 }
             }
             else

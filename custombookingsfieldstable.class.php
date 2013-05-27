@@ -114,7 +114,7 @@ class CustomBookingsFieldsTable extends WP_List_Table
         switch($column_name)
         {
             default:
-            return $item->$column_name;
+            return stripslashes($item->$column_name);
             break;
         }
     }
@@ -128,7 +128,7 @@ class CustomBookingsFieldsTable extends WP_List_Table
         
         //Return the title contents
         return sprintf('%1$s %2$s',
-            /*$1%s*/ $item->field_label,
+            /*$1%s*/ stripslashes($item->field_label),
             /*$2%s*/ $this->row_actions($actions)
         );
     }

@@ -15,11 +15,11 @@
         </p>
     <?php foreach($custom_fields as $field): $field->field_options = unserialize($field->field_options) ?>
      <p>
-            <label for='cb[<?php echo $field->field_slug ?>]'><?php echo $field->field_label ?></label>
+            <label for='cb[<?php echo $field->field_slug ?>]'><?php echo stripslashes($field->field_label) ?></label>
 
             <?php include(CB_PLUGIN_PATH . 'views/conditional-input-fields.php'); ?>
         
-        <?php if(!empty($field->field_description)): ?> <span class="description" style="color: #666; font-style: italic; font-size: 0.8em; margin: 0; display: block;"><?php echo $field->field_description ?><?php endif; ?></span>
+        <?php if(!empty($field->field_description)): ?> <span class="description" style="color: #666; font-style: italic; font-size: 0.8em; margin: 0; display: block;"><?php echo stripslashes($field->field_description) ?><?php endif; ?></span>
     </p>
     <?php endforeach; ?>
            <?php do_action('em_register_form'); //careful if making an add-on, this will only be used if you're not using custom booking forms ?>                  

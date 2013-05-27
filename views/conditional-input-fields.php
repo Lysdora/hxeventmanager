@@ -10,7 +10,7 @@ if(!is_array($field->field_options))
                 <?php elseif($field->field_type == 'select'): ?>
                     <select name="cb[<?php echo $field->field_slug ?>]" id="cb-form-<?php echo $field->field_slug ?>">
                         <?php foreach($field->field_options as $option_value => $option_label): ?>
-                        <option value="<?php echo $option_value ?>" <?php if(!empty($_REQUEST['cb'][$field->field_slug]) && $_REQUEST['cb'][$field->field_slug] == $option_value) echo 'selected'; elseif(isset($field->processed_value) && $field->processed_value == $option_value) echo 'selected' ?>><?php echo $option_label ?></option>
+                        <option value="<?php echo $option_value ?>" <?php if(!empty($_REQUEST['cb'][$field->field_slug]) && $_REQUEST['cb'][$field->field_slug] == $option_value) echo 'selected'; elseif(isset($field->processed_value) && $field->processed_value == $option_value) echo 'selected' ?>><?php echo stripslashes($option_label) ?></option>
                         <?php endforeach; ?>
                     </select>
                 

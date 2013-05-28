@@ -42,6 +42,9 @@ add_filter('em_bookings_table_rows_col', array('CustomBookings', 'bookings_table
 add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single_custom'), 10, 1);
 add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_submenu'));
 add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
+add_action('init', array('CustomBookings', 'add_total_price_script'));
+
+wp_register_script('cb-total-price', plugin_dir_url(__FILE__) . 'totalprice.js', array('jquery'));
 
 if(!class_exists('CustomBookingsFieldsTable'))
     include_once(CB_PLUGIN_PATH . 'custombookingsfieldstable.class.php');
@@ -55,7 +58,15 @@ class CustomBookings
 
     function __construct()
     {
+    }
 
+    function add_total_price_script()
+    {
+        error_log('add total price');
+        if(!is_admin())
+        {
+            wp_enqueue_script('cb-total-price');
+        }
     }
 
     function create_events_submenu($plugin_pages)

@@ -117,7 +117,7 @@ class CustomBookings
     {
         $options = unserialize($row->field_options);
 
-        error_log('row = '.print_r($row, true));
+        //error_log('row = '.print_r($row, true));
 
         if(is_array($options) && count($options) > 0 && array_key_exists($row->field_data, $options))
             return $options[$row->field_data];

@@ -13,6 +13,9 @@
             <label for='user_email'><?php _e('E-mail','dbem') ?></label> 
             <input type="text" name="user_email" id="user_email" class="input" value="<?php if(!empty($_REQUEST['user_email'])) echo esc_attr($_REQUEST['user_email']); ?>"  />
         </p>
+    <?php else: $wp_user = wp_get_current_user(); error_log(print_r($wp_user, true)); ?>
+        <p><?php _e(sprintf('Logged in as <strong><a href="%s">%s</a></strong>. <a href="%s">Log out?</a>', admin_url('profile.php'), $wp_user->data->display_name, wp_logout_url())); ?></p>
+    <?php endif; ?>
     <?php foreach($custom_fields as $field): $field->field_options = unserialize($field->field_options) ?>
      <p>
             <label for='cb[<?php echo $field->field_slug ?>]'><?php echo stripslashes($field->field_label) ?></label>
@@ -22,8 +25,7 @@
         <?php if(!empty($field->field_description)): ?> <span class="description" style="color: #666; font-style: italic; font-size: 0.8em; margin: 0; display: block;"><?php echo stripslashes($field->field_description) ?><?php endif; ?></span>
     </p>
     <?php endforeach; ?>
-           <?php do_action('em_register_form'); //careful if making an add-on, this will only be used if you're not using custom booking forms ?>                  
-    <?php endif; ?>     
+    <?php do_action('em_register_form'); //careful if making an add-on, this will only be used if you're not using custom booking forms ?>                  
     <p>
         <label for='booking_comment'><?php _e('Comment', 'dbem') ?></label>
         <textarea name='booking_comment' rows="2" cols="20"><?php echo !empty($_REQUEST['booking_comment']) ? esc_attr($_REQUEST['booking_comment']):'' ?></textarea>

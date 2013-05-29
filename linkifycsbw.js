@@ -24,7 +24,7 @@ jQuery(function($)
             var nickname = element.text();
             console.log('extracted nick: '+nickname);
 
-            if(nickname.length != 0)
+            if(nickname.length != 0 || nickname == '--')
             {
                 element.html('<a href="http://couchsurfing.org/people/'+nickname+'" target="_blank">'+nickname+'</a>');
             }
@@ -52,7 +52,7 @@ jQuery(function($)
             var nickname = element.text();
             console.log('extracted nick: '+nickname);
 
-            if(nickname.length != 0)
+            if(nickname.length != 0 || nickname == '--')
             {
                 element.html('<a href="http://bewelcome.org/members/'+nickname+'" target="_blank">'+nickname+'</a>');
             }

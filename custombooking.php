@@ -100,7 +100,7 @@ class CustomBookings
             if($row->field_slug == $col)
                 return self::process_field_data_and_return($row);
         }
-            return 'Unknown';
+            return '--';
     }
 
     function bookings_single_custom($EM_Booking)
@@ -469,7 +469,7 @@ class CustomBookingsFormEditor
 
 function display_bookings_table($atts, $content = NULL)
 {
-    extract(shortcode_atts(array('event' => 1, 'columns' => 'booking_date,first_name,cs_nick,need-host,arrival-date,booking_comment'), $atts));
+    extract(shortcode_atts(array('event' => 1, 'columns' => 'booking_date,first_name,booking_comment'), $atts));
 
     if(!class_exists('EM_Bookings_Table'))
         include_once(WP_PLUGIN_DIR . '/events-manager/classes/em-bookings-table.php');

@@ -44,6 +44,7 @@ add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_su
 add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
 add_action('init', array('CustomBookings', 'add_total_price_script'));
 add_shortcode('bookings-table', 'display_bookings_table');
+add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
 
 wp_register_script('cb-total-price', plugin_dir_url(__FILE__) . 'totalprice.js', array('jquery'));
 wp_register_script('cb-linkify-csbw', plugin_dir_url(__FILE__) . 'linkifycsbw.js', array('jquery'));
@@ -141,6 +142,12 @@ class CustomBookings
             return '--';
         else
             return stripslashes($row->field_data);
+    }
+
+    function modify_bookings_get_default_search($merged_defaults, $array, $defaults)
+    {
+        unset($defaults['owner']);
+        return $defaults;
     }
 }
 

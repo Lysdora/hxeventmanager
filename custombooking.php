@@ -43,11 +43,13 @@ add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single
 add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_submenu'));
 add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
 add_action('init', array('CustomBookings', 'add_total_price_script'));
+add_shortcode('bookings-table', 'display_bookings_table');
 
 wp_register_script('cb-total-price', plugin_dir_url(__FILE__) . 'totalprice.js', array('jquery'));
+wp_register_script('cb-linkify-csbw', plugin_dir_url(__FILE__) . 'linkifycsbw.js', array('jquery'));
 
 if(!class_exists('CustomBookingsFieldsTable'))
-    include_once(CB_PLUGIN_PATH . 'custombookingsfieldstable.class.php');
+    include_once(CB_PLUGIN_PATH . 'classes/custombookingsfieldstable.class.php');
 
 class CustomBookings
 {
@@ -62,10 +64,10 @@ class CustomBookings
 
     function add_total_price_script()
     {
-        error_log('add total price');
         if(!is_admin())
         {
             wp_enqueue_script('cb-total-price');
+            wp_enqueue_script('cb-linkify-csbw');
         }
     }
 
@@ -94,10 +96,11 @@ class CustomBookings
 
         foreach($cb_custom_field_values as $row)
         {
+            
             if($row->field_slug == $col)
                 return self::process_field_data_and_return($row);
         }
-            return print($col);
+            return 'Unknown';
     }
 
     function bookings_single_custom($EM_Booking)
@@ -462,4 +465,36 @@ class CustomBookingsFormEditor
 
         return count($errors) > 1 ? $errors : true;
     }
+}
+
+function display_bookings_table($atts, $content = NULL)
+{
+    extract(shortcode_atts(array('event' => 1, 'columns' => 'booking_date,first_name,cs_nick,need-host,arrival-date,booking_comment'), $atts));
+
+    if(!class_exists('EM_Bookings_Table'))
+        include_once(WP_PLUGIN_DIR . '/events-manager/classes/em-bookings-table.php');
+
+    if(!class_exists('CustomBookingsBookingsTable'))
+        include_once(CB_PLUGIN_PATH . 'classes/custom-bookings-bookings-table.class.php');
+
+    $EM_Event = new EM_Event($event);
+    $bookings_table = new CustomBookingsBookingsTable;
+    $shortcode_columns = explode(',', $columns);
+    //$custom_fields = CustomBookingsForm::getCustomFormFields();
+    $filtered_cols = array();
+
+    foreach($shortcode_columns as $col)
+    {
+        if(isset($bookings_table->cols_template[$col]))
+        {
+            $filtered_cols[$col] = $bookings_table->cols_template[$col];
+            $colslugs[] = $col;
+        }
+    }
+
+    error_log('display bookings_table :'.print_r($filtered_cols, true));
+
+    $bookings_table->cols = $colslugs;
+    $bookings_table->cols_template = $filtered_cols;
+    $bookings_table->output();
 }

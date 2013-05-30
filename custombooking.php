@@ -43,6 +43,7 @@ add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single
 add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_submenu'));
 add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
 add_action('init', array('CustomBookings', 'add_total_price_script'));
+add_filter('em_booking_delete', array('CustomBookings', 'booking_delete'), 10, 2);
 add_shortcode('bookings-table', 'display_bookings_table');
 add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
 
@@ -148,6 +149,18 @@ class CustomBookings
     {
         unset($defaults['owner']);
         return $defaults;
+    }
+
+    function booking_delete($result, $EM_Booking)
+    {
+        global $wpdb;
+        $tablenames = CustomBookings::$tablenames;
+
+        $result = $wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['field_data'].' '
+            .'WHERE user_ID = %d AND event_ID = %d', $EM_Booking->get_person()->ID, $EM_Booking->get_event()->event_id));
+
+
+        return $result;
     }
 }
 
@@ -371,7 +384,7 @@ class CustomBookingsFormEditor
         {
             $data = CustomBookingsForm::getCustomFormField($_GET['field'], ARRAY_A);
             $data = $data[0];
-            error_log(print_r($data, true));
+            //error_log(print_r($data, true));
             include(CB_PLUGIN_PATH . 'views/new_edit_field.php');
         }
         else
@@ -499,7 +512,7 @@ function display_bookings_table($atts, $content = NULL)
         }
     }
 
-    error_log('display bookings_table :'.print_r($filtered_cols, true));
+    //error_log('display bookings_table :'.print_r($filtered_cols, true));
 
     $bookings_table->cols = $colslugs;
     $bookings_table->cols_template = $filtered_cols;

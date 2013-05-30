@@ -43,9 +43,10 @@ add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single
 add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_submenu'));
 add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
 add_action('init', array('CustomBookings', 'add_total_price_script'));
-add_filter('em_booking_delete', array('CustomBookings', 'booking_delete'), 10, 2);
 add_shortcode('bookings-table', 'display_bookings_table');
 add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
+add_filter('em_booking_delete', array('CustomBookings', 'booking_delete'), 10, 2);
+add_action('deleted_user', array('CustomBookings', 'delete_user_booking_data'));
 
 wp_register_script('cb-total-price', plugin_dir_url(__FILE__) . 'totalprice.js', array('jquery'));
 wp_register_script('cb-linkify-csbw', plugin_dir_url(__FILE__) . 'linkifycsbw.js', array('jquery'));
@@ -161,6 +162,18 @@ class CustomBookings
 
 
         return $result;
+    }
+
+    function delete_user_booking_data($user_ID)
+    {
+        global $wpdb;
+        $tablenames = CustomBookings::$tablenames;
+
+        $result = $wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['field_data'].' '
+            .'WHERE user_ID = %d', $user_ID));
+
+
+        return $result;        
     }
 }
 

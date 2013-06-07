@@ -39,6 +39,7 @@ add_action('em_booking_save_pre', array('CustomBookingsForm', 'pre_save_booking'
 add_filter('em_booking_validate', array('CustomBookingsForm', 'validate_booking'), 10, 2);
 add_filter('em_bookings_table_cols_template', array('CustomBookings', 'bookings_table_cols_template'), 10, 2);
 add_filter('em_bookings_table_rows_col', array('CustomBookings', 'bookings_table_rows_col'), 10, 5);
+add_filter('em_bookings_table_booking_actions_5', array('CustomBookings', 'bookings_table_booking_actions_5'), 10, 2);
 add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single_custom'), 10, 1);
 add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_submenu'));
 add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
@@ -104,6 +105,18 @@ class CustomBookings
                 return self::process_field_data_and_return($row);
         }
             return '--';
+    }
+
+    function bookings_table_booking_actions_5($actions, $EM_Booking)
+    {
+        //for some strange reason, when the booking status is set to 'awaiting payment', only the Delete link is displayed in the actions column
+        //of course we still need to be able to approve and/or change the booking when awaiting payment
+        return array(
+            'approve' => '<a class="em-bookings-approve" href="'.em_add_get_params($url, array('action'=>'bookings_approve', 'booking_id'=>$EM_Booking->booking_id)).'">'.__('Approve','dbem').'</a>',
+            'reject' => '<a class="em-bookings-reject" href="'.em_add_get_params($url, array('action'=>'bookings_reject', 'booking_id'=>$EM_Booking->booking_id)).'">'.__('Reject','dbem').'</a>',
+            'delete' => '<span class="trash"><a class="em-bookings-delete" href="'.em_add_get_params($url, array('action'=>'bookings_delete', 'booking_id'=>$EM_Booking->booking_id)).'">'.__('Delete','dbem').'</a></span>',
+            'edit' => '<a class="em-bookings-edit" href="'.em_add_get_params($EM_Booking->get_event()->get_bookings_url(), array('booking_id'=>$EM_Booking->booking_id, 'em_ajax'=>null, 'em_obj'=>null)).'">'.__('Edit/View','dbem').'</a>'
+            );
     }
 
     function bookings_single_custom($EM_Booking)
@@ -224,6 +237,9 @@ class CustomBookingsForm
                     CustomBookings::show_message($error->get_error_message(), true);
                     return false;
                 }
+
+                //set the default status of a booking to 'Awaiting Payment'
+                $EM_Booking->booking_status = 5;
             }
         }
 

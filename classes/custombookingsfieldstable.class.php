@@ -170,6 +170,6 @@ class CustomBookingsFieldsTable extends WP_List_Table
 
     function ajax_response()
     {
-        return cirrent_user_can('manage_bookings');
+        return current_user_can('manage_bookings');
     }
 }

@@ -13,7 +13,7 @@
             <label for='user_email'><?php _e('E-mail','dbem') ?></label> 
             <input type="text" name="user_email" id="user_email" class="input" value="<?php if(!empty($_REQUEST['user_email'])) echo esc_attr($_REQUEST['user_email']); ?>"  />
         </p>
-    <?php else: $wp_user = wp_get_current_user(); error_log(print_r($wp_user, true)); ?>
+    <?php else: $wp_user = wp_get_current_user(); ?>
         <p><?php _e(sprintf('Logged in as <strong><a href="%s">%s</a></strong>. <a href="%s">Log out?</a>', admin_url('profile.php'), $wp_user->data->display_name, wp_logout_url())); ?></p>
     <?php endif; ?>
     <?php foreach($custom_fields as $field): $field->field_options = unserialize($field->field_options) ?>

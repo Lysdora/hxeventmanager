@@ -3,7 +3,7 @@
 /*
 Plugin Name: Custom Booking for Events Manager
 Plugin URI: http://welcometofryslan.nl/
-Version: 0.1 beta
+Version: 1.0
 Author: Coen de Jong
 Author URI: http://shifthappens.nl
 Description: Plugin to extend the functionality of the Events Manager plugin with custom Booking form fields. 
@@ -29,26 +29,59 @@ License: GPL2
 */
 
 define('CB_PLUGIN_PATH', plugin_dir_path(__FILE__));
-//define('HXEVENTS_DB_VERSION', 4); //this should be set to the newest db version
+define('CB_DB_VERSION', 4); //this should be set to the newest db version
 
 if(!isset($_COOKIE['PHPSESSID']))
     session_start();
 
-add_action('em_booking_form_custom', array('CustomBookingsForm', 'custom_form'));
-add_action('em_booking_save_pre', array('CustomBookingsForm', 'pre_save_booking'));
-add_filter('em_booking_validate', array('CustomBookingsForm', 'validate_booking'), 10, 2);
-add_filter('em_bookings_table_cols_template', array('CustomBookings', 'bookings_table_cols_template'), 10, 2);
-add_filter('em_bookings_table_rows_col', array('CustomBookings', 'bookings_table_rows_col'), 10, 5);
-add_filter('em_bookings_table_booking_actions_5', array('CustomBookings', 'bookings_table_booking_actions_5'), 10, 2);
-add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single_custom'), 10, 1);
+/* Actions and Filters to hook into data from existing Events Manager plugin */
+
+//Making sure that the Custom Fields manager is available from the Events menu in Admin
 add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_submenu'));
+
+//To create a custom form based on the custom form fields defined in the database
+add_action('em_booking_form_custom', array('CustomBookingsForm', 'custom_form'));
+
+//To make sure our custom form fields are saved together with a new booking
+add_action('em_booking_save_pre', array('CustomBookingsForm', 'pre_save_booking'));
+
+//Validate our custom fields based on their validation rules in the database
+add_filter('em_booking_validate', array('CustomBookingsForm', 'validate_booking'), 10, 2);
+
+//Tell the bookings table in Admin area which custom columns are available
+add_filter('em_bookings_table_cols_template', array('CustomBookings', 'bookings_table_cols_template'), 10, 2);
+
+//Function to process the data that belongs to each column of each row; here data from our custom fields is processed and given back to be displayed in the table
+add_filter('em_bookings_table_rows_col', array('CustomBookings', 'bookings_table_rows_col'), 10, 5);
+
+//Special processing function for when bookings have the status ID '5' (Awaiting Payment).
+//For some reason all actions except delete are gone when a booking receives this status
+add_filter('em_bookings_table_booking_actions_5', array('CustomBookings', 'bookings_table_booking_actions_5'), 10, 2);
+
+//Hook for the "editing a single booking" page in Admin (to display the data of our custom fields again)
+add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single_custom'), 10, 1);
+
+//To show a WP native admin notice saying stuff like settings saved, custom field created, etc.
 add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
+
+//WP hooks to include script on the front page for enhancements to the bookings table
+//this is done with JS because it's easier than to hook into the code here and easily disabled if unwanted
 add_action('init', array('CustomBookings', 'add_total_price_script'));
+add_action('init', array('CustomBookings', 'add_linkify_script'));
+
+//A shortcode to display the bookings table anywhere in your posts or pages (to let visitors see who is going to an event)
 add_shortcode('bookings-table', 'display_bookings_table');
+
+//To make inclusion of bookings table on front-end possible we need to delete the check on admin permissions, otherwise logged out users won't see anything
 add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
+
+//Upon deletion of a booking, all associated custom field data must be erased as well, to keep the db clean
 add_filter('em_booking_delete', array('CustomBookings', 'booking_delete'), 10, 2);
+
+//Upon deletion of a user, all associated custom booking data needs to be erased as well, to keep the db clean 
 add_action('deleted_user', array('CustomBookings', 'delete_user_booking_data'));
 
+//Register the JS scripts and their dependencies to WP, so all we have to do later on is wp_enqueue_script('handle')
 wp_register_script('cb-total-price', plugin_dir_url(__FILE__) . 'totalprice.js', array('jquery'));
 wp_register_script('cb-linkify-csbw', plugin_dir_url(__FILE__) . 'linkifycsbw.js', array('jquery'));
 
@@ -71,8 +104,12 @@ class CustomBookings
         if(!is_admin())
         {
             wp_enqueue_script('cb-total-price');
-            wp_enqueue_script('cb-linkify-csbw');
         }
+    }
+
+    function add_linkify_script()
+    {
+        wp_enqueue_script('cb-linkify-csbw');        
     }
 
     function create_events_submenu($plugin_pages)
@@ -88,7 +125,7 @@ class CustomBookings
 
         foreach($custom_fields as $field)
         {
-            $cols[$field->field_slug] = $field->field_label;            
+            $cols[$field->field_slug] = stripslashes($field->field_label);
         }
 
         return $cols;
@@ -150,7 +187,7 @@ class CustomBookings
         //error_log('row = '.print_r($row, true));
 
         if(is_array($options) && count($options) > 0 && array_key_exists($row->field_data, $options))
-            return $options[$row->field_data];
+            return stripslashes($options[$row->field_data]);
         elseif($row->field_type == 'checkbox' && $row->field_data == '1')
             return stripslashes($row->field_checkbox_label);
         elseif($row->field_type == 'checkbox' && ($row->field_data == '0' || $row->field_data == NULL))

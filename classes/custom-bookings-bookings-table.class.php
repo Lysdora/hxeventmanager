@@ -83,7 +83,6 @@ class CustomBookingsBookingsTable extends EM_Bookings_Table
         $EM_Person = $this->get_person();
         $_REQUEST['is_public'] = 1;
         $this->get_bookings(false); //get bookings and refresh
-        error_log('headers in output_table: '.print_r($this->get_headers(), true));
         include(CB_PLUGIN_PATH . 'views/bookings-table.php');
     }
 }

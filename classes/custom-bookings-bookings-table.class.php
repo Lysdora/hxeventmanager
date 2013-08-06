@@ -5,6 +5,7 @@ class CustomBookingsBookingsTable extends EM_Bookings_Table
     function __construct()
     {
         parent::__construct();
+        $this->limit = 1000;
     }
 
     function get_booking_actions($EM_Booking)

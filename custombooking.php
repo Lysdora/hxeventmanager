@@ -3,7 +3,7 @@
 /*
 Plugin Name: Custom Booking for Events Manager
 Plugin URI: http://welcometofryslan.nl/
-Version: 1.0
+Version: 1.0.2
 Author: Coen de Jong
 Author URI: http://shifthappens.nl
 Description: Plugin to extend the functionality of the Events Manager plugin with custom Booking form fields. 
@@ -28,6 +28,7 @@ License: GPL2
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+error_log('test cb');
 define('CB_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('CB_DB_VERSION', 4); //this should be set to the newest db version
 
@@ -57,6 +58,13 @@ add_filter('em_bookings_table_rows_col', array('CustomBookings', 'bookings_table
 //Special processing function for when bookings have the status ID '5' (Awaiting Payment).
 //For some reason all actions except delete are gone when a booking receives this status
 add_filter('em_bookings_table_booking_actions_5', array('CustomBookings', 'bookings_table_booking_actions_5'), 10, 2);
+
+//to force the status of the bookings query back to 'all' (if not set through POST)
+add_action('em_bookings_table_header', array('CustomBookings', 'bookings_table_header'), 10, 1);
+
+//to change the semantics of the booking system from Pending -> Awaiting Payment
+add_action('em_booking', array('CustomBookings', 'booking_change_semantics'), 10, 2);
+add_action('em_bookings_table', array('CustomBookings', 'bookings_table_change_semantics'), 10, 1);
 
 //Hook for the "editing a single booking" page in Admin (to display the data of our custom fields again)
 add_action('em_bookings_single_custom', array('CustomBookings', 'bookings_single_custom'), 10, 1);
@@ -112,11 +120,36 @@ class CustomBookings
         wp_enqueue_script('cb-linkify-csbw');        
     }
 
+    function booking_change_semantics($EM_Booking, $booking_data)
+    {
+        $EM_Booking->status_array = array(
+            0 => __('Awaiting Payment','dbem'),
+            1 => __('Approved','dbem'),
+            2 => __('Rejected','dbem'),
+            3 => __('Cancelled','dbem'),
+            4 => __('Awaiting Online Payment','dbem'),
+            5 => __('Awaiting Payment','dbem')
+        );
+    }
+
     function create_events_submenu($plugin_pages)
     {
         $plugin_pages['custom_form_fields'] = add_submenu_page('edit.php?post_type='.EM_POST_TYPE_EVENT, __('Custom Form Fields'),__('Custom Form Fields'), 'manage_bookings', "events-manager-custom-form-fields", array('CustomBookingsFormEditor', 'form_editor_overview'));
 
         return $plugin_pages;
+    }
+
+    function bookings_table_change_semantics($EM_Bookings_Table)
+    {
+        $EM_Bookings_Table->statuses = array(
+            'all' => array('label'=>__('All','dbem'), 'search'=>false),
+            'pending' => array('label'=>__('Awaiting Payment','dbem'), 'search'=>0),
+            'confirmed' => array('label'=>__('Confirmed','dbem'), 'search'=>1),
+            'cancelled' => array('label'=>__('Cancelled','dbem'), 'search'=>3),
+            'rejected' => array('label'=>__('Rejected','dbem'), 'search'=>2),
+            'needs-attention' => array('label'=>__('Needs Attention','dbem'), 'search'=>array(0)),
+            'incomplete' => array('label'=>__('Incomplete Bookings','dbem'), 'search'=>array(0))
+        );        
     }
 
     function bookings_table_cols_template($cols, $EM_Bookings_Table)
@@ -128,11 +161,22 @@ class CustomBookings
             $cols[$field->field_slug] = stripslashes($field->field_label);
         }
 
+        //ticket id exists, so column "ticket spaces" for this table is allowed
+        if(isset($_REQUEST['ticket_id']))
+        {
+            $cols['ticket_spaces'] = "Ticket Spaces";
+        }
+
         return $cols;
     }
 
     function bookings_table_rows_col($val, $col, $EM_Booking, $EM_Bookings_Table, $csv)
     {
+        if($col == "ticket_spaces")
+        {
+            return self::getTicketSpaces($EM_Booking->booking_id, $_REQUEST['ticket_id']);
+        }
+
         $cb_custom_field_values = CustomBookingsForm::getCustomFormValues($EM_Booking->event_id, $EM_Booking->person_id);
 
         foreach($cb_custom_field_values as $row)
@@ -154,6 +198,18 @@ class CustomBookings
             'delete' => '<span class="trash"><a class="em-bookings-delete" href="'.em_add_get_params($url, array('action'=>'bookings_delete', 'booking_id'=>$EM_Booking->booking_id)).'">'.__('Delete','dbem').'</a></span>',
             'edit' => '<a class="em-bookings-edit" href="'.em_add_get_params($EM_Booking->get_event()->get_bookings_url(), array('booking_id'=>$EM_Booking->booking_id, 'em_ajax'=>null, 'em_obj'=>null)).'">'.__('Edit/View','dbem').'</a>'
             );
+    }
+
+    function bookings_table_header($EM_Bookings_Table)
+    {
+        $EM_Bookings_Table->status = ( !empty($_REQUEST['status']) && array_key_exists($_REQUEST['status'], $EM_Bookings_Table->statuses) ) ? $_REQUEST['status']:get_option('dbem_default_bookings_search','all');
+    }
+
+    function events_get_sql($sql, $args)
+    {
+        error_log('sql for bookings or tickets = '.$sql);
+
+        return $sql;
     }
 
     function bookings_single_custom($EM_Booking)
@@ -198,8 +254,9 @@ class CustomBookings
 
     function modify_bookings_get_default_search($merged_defaults, $array, $defaults)
     {
-        unset($defaults['owner']);
-        return $defaults;
+        $merged_defaults = array_merge($merged_defaults, $array); //$array overwrites the defaults
+        unset($merged_defaults['owner']);
+        return $merged_defaults;
     }
 
     function booking_delete($result, $EM_Booking)
@@ -224,6 +281,15 @@ class CustomBookings
 
 
         return $result;        
+    }
+
+    function getTicketSpaces($booking_id, $ticket_id)
+    {
+        global $wpdb;
+        $result = $wpdb->get_var($wpdb->prepare('SELECT ticket_booking_spaces as spaces FROM '.EM_TICKETS_BOOKINGS_TABLE.' '
+            .'WHERE booking_id = %d AND ticket_id = %d', $booking_id, $ticket_id));
+
+        return $result;
     }
 }
 
@@ -276,7 +342,7 @@ class CustomBookingsForm
                 }
 
                 //set the default status of a booking to 'Awaiting Payment'
-                $EM_Booking->booking_status = 5;
+                //$EM_Booking->booking_status = 5;
             }
         }
 

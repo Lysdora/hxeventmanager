@@ -16,9 +16,10 @@ jQuery(function($)
             var price = parseFloat($(e).find('.em-bookings-ticket-table-price').first().text().replace(/[^\d.,]/g, "").replace(',','.'));
             var spaces = parseInt($(e).find('.em-bookings-ticket-table-spaces select').first().val());
 
-            console.log(price, spaces);
-
-            totalamount += (spaces * price);
+            if($(e).find('.em-bookings-ticket-table-spaces').first().text().indexOf('N/A') != -1)
+              totalamount += 0; //skip this item for total price calculation, because it is no longer available
+            else
+              totalamount += (spaces * price);
         })
 
         console.log(currency+totalamount);

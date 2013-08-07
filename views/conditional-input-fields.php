@@ -8,9 +8,11 @@ if(!is_array($field->field_options))
                     <input type="text" name="cb[<?php echo $field->field_slug ?>]" id="cb-form-<?php echo $field->field_slug ?>" class="input" value="<?php if(!empty($_REQUEST['cb'][$field->field_slug])) echo esc_attr($_REQUEST['custom'][$field->field_slug]); elseif(isset($field->processed_value)) echo $field->processed_value ?>"  />
                 
                 <?php elseif($field->field_type == 'select'): ?>
+                <?php error_log($field->field_slug.': '.$field->processed_value); ?>
+                <?php error_log('options: '.print_r($field->field_options, true)); ?>
                     <select name="cb[<?php echo $field->field_slug ?>]" id="cb-form-<?php echo $field->field_slug ?>">
                         <?php foreach($field->field_options as $option_value => $option_label): ?>
-                        <option value="<?php echo $option_value ?>" <?php if(!empty($_REQUEST['cb'][$field->field_slug]) && $_REQUEST['cb'][$field->field_slug] == $option_value) echo 'selected'; elseif(isset($field->processed_value) && $field->processed_value == $option_value) echo 'selected' ?>><?php echo stripslashes($option_label) ?></option>
+                        <option value="<?php echo $option_value ?>" <?php if(!empty($_REQUEST['cb'][$field->field_slug]) && $_REQUEST['cb'][$field->field_slug] == $option_label) echo 'selected'; elseif(isset($field->processed_value) && $field->processed_value == $option_label) echo 'selected' ?>><?php echo stripslashes($option_label) ?></option>
                         <?php endforeach; ?>
                     </select>
                 

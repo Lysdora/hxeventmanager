@@ -22,7 +22,6 @@ jQuery(function($)
               totalamount += (spaces * price);
         })
 
-        console.log(currency+totalamount);
         $('#cb-totalprice').text(currency+totalamount.toFixed(2));
    } 
 });

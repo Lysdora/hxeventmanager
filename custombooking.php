@@ -28,7 +28,6 @@ License: GPL2
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-error_log('test cb');
 define('CB_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('CB_DB_VERSION', 4); //this should be set to the newest db version
 
@@ -81,7 +80,7 @@ add_action('init', array('CustomBookings', 'add_linkify_script'));
 add_shortcode('bookings-table', 'display_bookings_table');
 
 //To make inclusion of bookings table on front-end possible we need to delete the check on admin permissions, otherwise logged out users won't see anything
-add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
+//add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
 
 //Upon deletion of a booking, all associated custom field data must be erased as well, to keep the db clean
 add_filter('em_booking_delete', array('CustomBookings', 'booking_delete'), 10, 2);
@@ -92,6 +91,10 @@ add_action('deleted_user', array('CustomBookings', 'delete_user_booking_data'));
 //Register the JS scripts and their dependencies to WP, so all we have to do later on is wp_enqueue_script('handle')
 wp_register_script('cb-total-price', plugin_dir_url(__FILE__) . 'totalprice.js', array('jquery'));
 wp_register_script('cb-linkify-csbw', plugin_dir_url(__FILE__) . 'linkifycsbw.js', array('jquery'));
+
+//DEBUG hook to see what queries are executed during page load
+//define(SAVEQUERIES, true);
+//add_action('shutdown', 'write_queries');
 
 if(!class_exists('CustomBookingsFieldsTable'))
     include_once(CB_PLUGIN_PATH . 'classes/custombookingsfieldstable.class.php');
@@ -205,13 +208,6 @@ class CustomBookings
         $EM_Bookings_Table->status = ( !empty($_REQUEST['status']) && array_key_exists($_REQUEST['status'], $EM_Bookings_Table->statuses) ) ? $_REQUEST['status']:get_option('dbem_default_bookings_search','all');
     }
 
-    function events_get_sql($sql, $args)
-    {
-        error_log('sql for bookings or tickets = '.$sql);
-
-        return $sql;
-    }
-
     function bookings_single_custom($EM_Booking)
     {
         $custom_fields = CustomBookingsForm::getCustomFormValues($EM_Booking->event_id, $EM_Booking->person_id);
@@ -256,6 +252,8 @@ class CustomBookings
     {
         $merged_defaults = array_merge($merged_defaults, $array); //$array overwrites the defaults
         unset($merged_defaults['owner']);
+        $merged_defaults['status'] = isset($_REQUEST['status']) ? $_REQUEST['status'] : $defailts['status'];
+        error_log('merged defaults: '.print_r($merged_defaults, true));
         return $merged_defaults;
     }
 
@@ -649,4 +647,10 @@ function display_bookings_table($atts, $content = NULL)
     $bookings_table->cols = $colslugs;
     $bookings_table->cols_template = $filtered_cols;
     $bookings_table->output();
+}
+
+function write_queries()
+{
+    global $wpdb;
+    error_log('Queries executed by wpdb: '.print_r($wpdb->queries, true));
 }

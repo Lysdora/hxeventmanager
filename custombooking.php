@@ -3,7 +3,7 @@
 /*
 Plugin Name: Custom Booking for Events Manager
 Plugin URI: http://welcometofryslan.nl/
-Version: 1.0.2
+Version: 1.1
 Author: Coen de Jong
 Author URI: http://shifthappens.nl
 Description: Plugin to extend the functionality of the Events Manager plugin with custom Booking form fields. 
@@ -29,10 +29,18 @@ License: GPL2
 */
 
 define('CB_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('CB_DB_VERSION', 4); //this should be set to the newest db version
+define('CB_DB_VERSION', 5); //this should be set to the newest db version
 
 if(!isset($_COOKIE['PHPSESSID']))
     session_start();
+
+/* Actions and Filters to hook into WordPress ecosystem */
+
+//Installing and checking CB database tables on activation and plugin loading
+register_activation_hook(__FILE__, array('CustomBookings', 'install_db'));
+add_action('plugins_loaded', array('CustomBookings', 'db_upgrade_check'));
+
+
 
 /* Actions and Filters to hook into data from existing Events Manager plugin */
 
@@ -43,7 +51,7 @@ add_filter('em_create_events_submenu', array('CustomBookings', 'create_events_su
 add_action('em_booking_form_custom', array('CustomBookingsForm', 'custom_form'));
 
 //To make sure our custom form fields are saved together with a new booking
-add_action('em_booking_save_pre', array('CustomBookingsForm', 'pre_save_booking'));
+add_filter('em_booking_save', array('CustomBookingsForm', 'save_booking'), 10, 2);
 
 //Validate our custom fields based on their validation rules in the database
 add_filter('em_booking_validate', array('CustomBookingsForm', 'validate_booking'), 10, 2);
@@ -80,7 +88,7 @@ add_action('init', array('CustomBookings', 'add_linkify_script'));
 add_shortcode('bookings-table', 'display_bookings_table');
 
 //To make inclusion of bookings table on front-end possible we need to delete the check on admin permissions, otherwise logged out users won't see anything
-//add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
+add_filter('em_bookings_get_default_search', array('CustomBookings', 'modify_bookings_get_default_search'), 10, 3);
 
 //Upon deletion of a booking, all associated custom field data must be erased as well, to keep the db clean
 add_filter('em_booking_delete', array('CustomBookings', 'booking_delete'), 10, 2);
@@ -108,6 +116,33 @@ class CustomBookings
 
     function __construct()
     {
+    }
+
+    function install_db()
+    {
+       global $wpdb;
+
+       $tablenames = self::$tablenames;
+       $sql = file_get_contents(CB_PLUGIN_PATH . 'db.sql');
+
+       foreach($tablenames as $tablename)
+       {
+           $sql = str_replace('$'.$tablename, $wpdb->prefix.$tablename, $sql);
+       }
+          
+       require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+       dbDelta($sql);
+     
+       add_option( "cb_db_version", CB_DB_VERSION);
+    }
+
+    function db_upgrade_check()
+    {
+        $curr_db_version = get_site_option( 'cb_db_version' );
+        if($curr_db_version != CB_DB_VERSION) 
+        {
+            self::install_db();
+        }
     }
 
     function add_total_price_script()
@@ -250,10 +285,8 @@ class CustomBookings
 
     function modify_bookings_get_default_search($merged_defaults, $array, $defaults)
     {
-        $merged_defaults = array_merge($merged_defaults, $array); //$array overwrites the defaults
         unset($merged_defaults['owner']);
-        $merged_defaults['status'] = isset($_REQUEST['status']) ? $_REQUEST['status'] : $defailts['status'];
-        error_log('merged defaults: '.print_r($merged_defaults, true));
+
         return $merged_defaults;
     }
 
@@ -301,13 +334,16 @@ class CustomBookingsForm
         include(CB_PLUGIN_PATH . 'views/booking_form.php');
     }
 
-    function pre_save_booking($EM_Booking)
+    function save_booking($status, $EM_Booking)
     {
         global $wpdb;
 
         $data['field_data_ID'] = 'NULL';
         $data['user_ID'] = $EM_Booking->person_id;
         $data['event_ID'] = $EM_Booking->event_id;
+        $data['booking_ID'] = $EM_Booking->booking_id;
+
+        error_log('data save booking: '.print_r($data, true));
 
         foreach($_REQUEST['cb'] as $custom_field_slug => $custom_field_data)
         {
@@ -317,7 +353,7 @@ class CustomBookingsForm
             if($_REQUEST['page'] == 'events-manager-bookings')
             {
                 //it's an edit
-                $where = array('user_ID' => $EM_Booking->person_id, 'event_ID' => $EM_Booking->event_id, 'field_slug' => $custom_field_slug);
+                $where = array('user_ID' => $EM_Booking->person_id, 'event_ID' => $EM_Booking->event_id, 'field_slug' => $custom_field_slug, 'booking_ID' => $EM_Booking->booking_id);
                 $data = array('field_data' => $custom_field_data);
 
                 if($wpdb->update($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data, $where) === false)
@@ -353,7 +389,7 @@ class CustomBookingsForm
                 if($_REQUEST['page'] == 'events-manager-bookings')
                 {
                     //it's an edit
-                    $where = array('user_ID' => $EM_Booking->person_id, 'event_ID' => $EM_Booking->event_id, 'field_slug' => $custom_field_slug);
+                    $where = array('user_ID' => $EM_Booking->person_id, 'event_ID' => $EM_Booking->event_id, 'field_slug' => $custom_field_slug, 'booking_ID' => $EM_Booking->booking_id);
 
                     if($wpdb->update($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data, $where) === false)
                     {

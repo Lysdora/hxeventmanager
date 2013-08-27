@@ -1,13 +1,13 @@
 <?php 
 
 /*
-Plugin Name: Custom Booking for Events Manager
+Plugin Name: HX Event Manager
 Plugin URI: http://welcometofryslan.nl/
 Version: 1.1
 Author: Coen de Jong
 Author URI: http://shifthappens.nl
-Description: Plugin to extend the functionality of the Events Manager plugin with custom Booking form fields. 
-Text Domain: cbfem
+Description: Plugin to extend the functionality of the Events Manager plugin with features specific to bigger events. 
+Text Domain: hxem
 Domain Path: /languages
 License: GPL2
 */

@@ -6,6 +6,7 @@ class CustomBookingsBookingsTable extends EM_Bookings_Table
     {
         parent::__construct();
         $this->limit = 1000;
+        $this->scope = 'all';
     }
 
     function get_booking_actions($EM_Booking)
@@ -83,6 +84,7 @@ class CustomBookingsBookingsTable extends EM_Bookings_Table
         $EM_Event = $this->get_event();
         $EM_Person = $this->get_person();
         $_REQUEST['is_public'] = 1;
+        $_REQUEST['scope'] = 'all';
         $this->get_bookings(false); //get bookings and refresh
         include(CB_PLUGIN_PATH . 'views/bookings-table.php');
     }

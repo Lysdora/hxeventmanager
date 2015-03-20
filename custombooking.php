@@ -3,7 +3,7 @@
 /*
 Plugin Name: HX Event Manager
 Plugin URI: http://welcometofryslan.nl/
-Version: 1.1
+Version: 1.2
 Author: Coen de Jong
 Author URI: http://shifthappens.nl
 Description: Plugin to extend the functionality of the Events Manager plugin with features specific to bigger events. 
@@ -12,7 +12,7 @@ Domain Path: /languages
 License: GPL2
 */
 
-/*  Copyright 2013  Coen de Jong  (email : co.dejong@gmail.com )
+/*  Copyright 2013-2015  Coen de Jong  (email : coen@shifthappens.nl )
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2, as 
@@ -81,8 +81,7 @@ add_action('admin_notices', array('CustomBookings', 'show_message'), 10, 2);
 
 //WP hooks to include script on the front page for enhancements to the bookings table
 //this is done with JS because it's easier than to hook into the code here and easily disabled if unwanted
-add_action('init', array('CustomBookings', 'add_total_price_script'));
-add_action('init', array('CustomBookings', 'add_linkify_script'));
+add_action('init', array('CustomBookings', 'add_clientside_scripts'));
 
 //A shortcode to display the bookings table anywhere in your posts or pages (to let visitors see who is going to an event)
 add_shortcode('bookings-table', 'display_bookings_table');
@@ -97,8 +96,7 @@ add_filter('em_booking_delete', array('CustomBookings', 'booking_delete'), 10, 2
 add_action('deleted_user', array('CustomBookings', 'delete_user_booking_data'));
 
 //Register the JS scripts and their dependencies to WP, so all we have to do later on is wp_enqueue_script('handle')
-wp_register_script('cb-total-price', plugin_dir_url(__FILE__) . 'totalprice.js', array('jquery'));
-wp_register_script('cb-linkify-csbw', plugin_dir_url(__FILE__) . 'linkifycsbw.js', array('jquery'));
+wp_register_script('cb-clientside-scripts', plugin_dir_url(__FILE__) . 'cb-clientside.js', array('jquery'));
 
 //DEBUG hook to see what queries are executed during page load
 //define(SAVEQUERIES, true);
@@ -145,17 +143,9 @@ class CustomBookings
         }
     }
 
-    function add_total_price_script()
+    function add_clientside_scripts()
     {
-        if(!is_admin())
-        {
-            wp_enqueue_script('cb-total-price');
-        }
-    }
-
-    function add_linkify_script()
-    {
-        wp_enqueue_script('cb-linkify-csbw');        
+        wp_enqueue_script('cb-clientside-scripts');
     }
 
     function booking_change_semantics($EM_Booking, $booking_data)

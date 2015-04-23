@@ -122,6 +122,12 @@ class CustomBookings
 
        $tablenames = self::$tablenames;
        $sql = file_get_contents(CB_PLUGIN_PATH . 'db.sql');
+
+       if(!$sql || strlen($sql) === 0)
+            self::show_message('HX Events Manager Database file could not be found! 
+                This could create unexpected behavior.
+                Upload db.sql from the plugin package to the root of the plugin folder. 
+                Database not updated to version '.CB_DB_VERSION, TRUE);
     
        foreach($tablenames as $tablename)
        {

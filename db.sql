@@ -7,7 +7,7 @@ CREATE TABLE $cb_fields (
   field_label varchar(255) NOT NULL,
   field_description text NOT NULL,
   field_checkbox_label varchar(255) DEFAULT NULL,
-  field_type enum('text','select','textarea','checkbox') NOT NULL,
+  field_type enum('text','select','textarea','checkbox', 'captcha') NOT NULL,
   field_options text NOT NULL,
   field_required tinyint(1) NOT NULL,
   field_active tinyint(1) NOT NULL,

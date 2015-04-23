@@ -29,7 +29,7 @@ License: GPL2
 */
 
 define('CB_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('CB_DB_VERSION', 7); //this should be set to the newest db version
+define('CB_DB_VERSION', 8); //this should be set to the newest db version
 
 if(!isset($_COOKIE['PHPSESSID']))
     session_start();

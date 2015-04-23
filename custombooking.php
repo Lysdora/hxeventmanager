@@ -3,7 +3,7 @@
 /*
 Plugin Name: HX Event Manager
 Plugin URI: http://welcometofryslan.nl/
-Version: 1.2
+Version: 1.3
 Author: Coen de Jong
 Author URI: http://shifthappens.nl
 Description: Plugin to extend the functionality of the Events Manager plugin with features specific to bigger events. 
@@ -29,7 +29,7 @@ License: GPL2
 */
 
 define('CB_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('CB_DB_VERSION', 5); //this should be set to the newest db version
+define('CB_DB_VERSION', 7); //this should be set to the newest db version
 
 if(!isset($_COOKIE['PHPSESSID']))
     session_start();
@@ -59,10 +59,10 @@ add_filter('em_booking_validate', array('CustomBookingsForm', 'validate_booking'
 //Tell the bookings table in Admin area which custom columns are available
 add_filter('em_bookings_table_cols_template', array('CustomBookings', 'bookings_table_cols_template'), 10, 2);
 
-//Function to process the data that belongs to each column of each row; here data from our custom fields is processed and given back to be displayed in the table
+//static function to process the data that belongs to each column of each row; here data from our custom fields is processed and given back to be displayed in the table
 add_filter('em_bookings_table_rows_col', array('CustomBookings', 'bookings_table_rows_col'), 10, 5);
 
-//Special processing function for when bookings have the status ID '5' (Awaiting Payment).
+//Special processing static function for when bookings have the status ID '5' (Awaiting Payment).
 //For some reason all actions except delete are gone when a booking receives this status
 add_filter('em_bookings_table_booking_actions_5', array('CustomBookings', 'bookings_table_booking_actions_5'), 10, 2);
 
@@ -116,13 +116,13 @@ class CustomBookings
     {
     }
 
-    function install_db()
+    static function install_db($upgrade = FALSE)
     {
        global $wpdb;
 
        $tablenames = self::$tablenames;
        $sql = file_get_contents(CB_PLUGIN_PATH . 'db.sql');
-
+    
        foreach($tablenames as $tablename)
        {
            $sql = str_replace('$'.$tablename, $wpdb->prefix.$tablename, $sql);
@@ -131,24 +131,27 @@ class CustomBookings
        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
        dbDelta($sql);
      
-       add_option( "cb_db_version", CB_DB_VERSION);
+       update_option( "cb_db_version", CB_DB_VERSION);
+
+       if($upgrade)
+            self::show_message('HX Events Manager Database updated to version '.CB_DB_VERSION);
     }
 
-    function db_upgrade_check()
+    static function db_upgrade_check()
     {
         $curr_db_version = get_site_option( 'cb_db_version' );
         if($curr_db_version != CB_DB_VERSION) 
         {
-            self::install_db();
+            self::install_db(true);
         }
     }
 
-    function add_clientside_scripts()
+    static function add_clientside_scripts()
     {
         wp_enqueue_script('cb-clientside-scripts');
     }
 
-    function booking_change_semantics($EM_Booking, $booking_data)
+    static function booking_change_semantics($EM_Booking, $booking_data)
     {
         $EM_Booking->status_array = array(
             0 => __('Awaiting Payment','dbem'),
@@ -160,14 +163,14 @@ class CustomBookings
         );
     }
 
-    function create_events_submenu($plugin_pages)
+    static function create_events_submenu($plugin_pages)
     {
         $plugin_pages['custom_form_fields'] = add_submenu_page('edit.php?post_type='.EM_POST_TYPE_EVENT, __('Custom Form Fields'),__('Custom Form Fields'), 'manage_bookings', "events-manager-custom-form-fields", array('CustomBookingsFormEditor', 'form_editor_overview'));
 
         return $plugin_pages;
     }
 
-    function bookings_table_change_semantics($EM_Bookings_Table)
+    static function bookings_table_change_semantics($EM_Bookings_Table)
     {
         $EM_Bookings_Table->statuses = array(
             'all' => array('label'=>__('All','dbem'), 'search'=>false),
@@ -180,7 +183,7 @@ class CustomBookings
         );        
     }
 
-    function bookings_table_cols_template($cols, $EM_Bookings_Table)
+    static function bookings_table_cols_template($cols, $EM_Bookings_Table)
     {
         $custom_fields = CustomBookingsForm::getCustomFormFields();
 
@@ -198,7 +201,7 @@ class CustomBookings
         return $cols;
     }
 
-    function bookings_table_rows_col($val, $col, $EM_Booking, $EM_Bookings_Table, $csv)
+    static function bookings_table_rows_col($val, $col, $EM_Booking, $EM_Bookings_Table, $csv)
     {
         if($col == "ticket_spaces")
         {
@@ -216,7 +219,7 @@ class CustomBookings
             return '--';
     }
 
-    function bookings_table_booking_actions_5($actions, $EM_Booking)
+    static function bookings_table_booking_actions_5($actions, $EM_Booking)
     {
         //for some strange reason, when the booking status is set to 'awaiting payment', only the Delete link is displayed in the actions column
         //of course we still need to be able to approve and/or change the booking when awaiting payment
@@ -228,19 +231,19 @@ class CustomBookings
             );
     }
 
-    function bookings_table_header($EM_Bookings_Table)
+    static function bookings_table_header($EM_Bookings_Table)
     {
         $EM_Bookings_Table->status = ( !empty($_REQUEST['status']) && array_key_exists($_REQUEST['status'], $EM_Bookings_Table->statuses) ) ? $_REQUEST['status']:get_option('dbem_default_bookings_search','all');
     }
 
-    function bookings_single_custom($EM_Booking)
+    static function bookings_single_custom($EM_Booking)
     {
         $custom_fields = CustomBookingsForm::getCustomFormValues($EM_Booking->event_id, $EM_Booking->person_id);
 
         include(CB_PLUGIN_PATH . 'views/booking_edit.php');
     }
 
-    function show_message($message, $error = false)
+    static function show_message($message, $error = false)
     {
         if(empty($message))
             return;
@@ -257,7 +260,7 @@ class CustomBookings
         echo "<p><strong>".$message."</strong></p></div>";
     }
 
-    function process_field_data_and_return($row)
+    static function process_field_data_and_return($row)
     {
         $options = unserialize($row->field_options);
 
@@ -273,14 +276,14 @@ class CustomBookings
             return stripslashes($row->field_data);
     }
 
-    function modify_bookings_get_default_search($merged_defaults, $array, $defaults)
+    static function modify_bookings_get_default_search($merged_defaults, $array, $defaults)
     {
         unset($merged_defaults['owner']);
 
         return $merged_defaults;
     }
 
-    function booking_delete($result, $EM_Booking)
+    static function booking_delete($result, $EM_Booking)
     {
         global $wpdb;
         $tablenames = CustomBookings::$tablenames;
@@ -292,7 +295,7 @@ class CustomBookings
         return $result;
     }
 
-    function delete_user_booking_data($user_ID)
+    static function delete_user_booking_data($user_ID)
     {
         global $wpdb;
         $tablenames = CustomBookings::$tablenames;
@@ -304,7 +307,7 @@ class CustomBookings
         return $result;        
     }
 
-    function getTicketSpaces($booking_id, $ticket_id)
+    static function getTicketSpaces($booking_id, $ticket_id)
     {
         global $wpdb;
         $result = $wpdb->get_var($wpdb->prepare('SELECT ticket_booking_spaces as spaces FROM '.EM_TICKETS_BOOKINGS_TABLE.' '
@@ -317,14 +320,14 @@ class CustomBookings
 class CustomBookingsForm
 {
 
-    function custom_form($EM_Event)
+    static function custom_form($EM_Event)
     {
         //error_log(print_r($EM_Event, true));
         $custom_fields = self::getCustomFormFields();
         include(CB_PLUGIN_PATH . 'views/booking_form.php');
     }
 
-    function save_booking($status, $EM_Booking)
+    static function save_booking($status, $EM_Booking)
     {
         global $wpdb;
 
@@ -350,6 +353,7 @@ class CustomBookingsForm
                 {
                     error_log('last query after update: '.$wpdb->last_query);
                     $error = new WP_Error('dberror', 'Couldn\'t update custom field with slug "'.$custom_field_slug.'"');
+                    $EM_Booking->add_error('Couldn\'t update custom field with slug "'.$custom_field_slug.'"');
                     CustomBookings::show_message($error->get_error_message(), true);
                     return false;
                 }
@@ -361,6 +365,7 @@ class CustomBookingsForm
                 if(!$wpdb->insert($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data))
                 {
                     $error = new WP_Error('dberror', 'Couldn\'t insert custom field with slug "'.$custom_field_slug.'"');
+                    $EM_Booking->add_error('Couldn\'t insert custom field with slug "'.$custom_field_slug.'" (query error was: '.$wpdb->last_error.')');
                     CustomBookings::show_message($error->get_error_message(), true);
                     return false;
                 }
@@ -406,7 +411,7 @@ class CustomBookingsForm
         return true;
     }
 
-    function validate_booking($result, $EM_Booking)
+    static function validate_booking($result, $EM_Booking)
     {
         global $wpdb;
         $custom_fields = self::getCustomFormFields();
@@ -426,7 +431,7 @@ class CustomBookingsForm
         return $result;
     }
 
-    function getCustomFormFields()
+    static function getCustomFormFields()
     {
         global $wpdb;
         $tablenames = CustomBookings::$tablenames;
@@ -450,7 +455,7 @@ class CustomBookingsForm
         }
     }
 
-    function getCustomFormField($field_slug, $output_type = OBJECT)
+    static function getCustomFormField($field_slug, $output_type = OBJECT)
     {
         global $wpdb;
         $tablenames = CustomBookings::$tablenames;
@@ -461,7 +466,7 @@ class CustomBookingsForm
         return $results;
     }
 
-    function getCustomFormValues($event_ID, $user_ID)
+    static function getCustomFormValues($event_ID, $user_ID)
     {
         global $wpdb;
         $tablenames = CustomBookings::$tablenames;

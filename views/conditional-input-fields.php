@@ -20,5 +20,19 @@ if(!is_array($field->field_options))
 
                 <?php elseif($field->field_type == 'textarea'): ?>
                     <textarea name="cb[<?php echo $field->field_slug ?>]" id="cb-form-<?php echo $field->field_slug ?>"><?php if(!empty($_REQUEST['cb'][$field->field_slug])) echo esc_attr($_REQUEST['custom'][$field->field_slug]); elseif(isset($field->processed_value)) echo $field->processed_value ?></textarea>
-                
+
+                <?php elseif($field->field_type == 'captcha'): //special field type for preventing spammers (since 1.1) ?>
+                    <script>
+                    function renderCaptcha()
+                    {
+                        grecaptcha.render(document.getElementById('g-recaptcha-hx'), 
+                        {
+                            'sitekey': '6LfpDPUSAAAAABuso8aobSexea6A3Rs_FNv4tLAt',
+                            'theme': 'light'
+                        });
+                    }
+
+                    </script>
+                   <script src='https://www.google.com/recaptcha/api.js?onload=renderCaptcha&render=explicit&hl=en' async defer></script>
+                    <div class="g-recaptcha" id="g-recaptcha-hx" data-sitekey="6LfpDPUSAAAAABuso8aobSexea6A3Rs_FNv4tLAt" data-theme="light"></div>                
                 <?php endif; ?>

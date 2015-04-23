@@ -28,6 +28,7 @@ endif
         <option value="checkbox" <?php echo isset($data['field_type']) && $data['field_type'] == 'checkbox' ? 'selected' : '' ?>>Checkbox</option>
         <option value="select" <?php echo isset($data['field_type']) && $data['field_type'] == 'select' ? 'selected' : '' ?>>Dropdown</option>
         <option value="textarea" <?php echo isset($data['field_type']) && $data['field_type'] == 'textarea' ? 'selected' : '' ?>>Big text area</option>
+        <option value="captcha" <?php echo isset($data['field_type']) && $data['field_type'] == 'captcha' ? 'selected' : '' ?>>CAPTCHA</option>
         </select>
     </td>
 </tr>

@@ -78,7 +78,16 @@ jQuery(function($)
     .children('select')
     .on('change', checkTshirt);
 
+    /* Prevent people from setting a T-shirt size without actually ordering a T-shirt */
+    $('#cb-form-dinner-choice').parent().hide();
+
+    $('.em-bookings-ticket-table-type:contains("Main Dinner")')
+    .siblings('td.em-bookings-ticket-table-spaces')
+    .children('select')
+    .on('change', checkDinner);
+
 })
+
 
 /* Function to recalculate the prices in the table when registering for the event */
 function recalculateAllPrices(event)
@@ -102,9 +111,15 @@ function recalculateAllPrices(event)
 function checkTshirt(event)
 {
     if(jQuery(event.target).val() == 0)
-    {
         $('#cb-form-what-size-t-shirt-do-you-want').val(0).parent().hide();
-    }
     else
         $('#cb-form-what-size-t-shirt-do-you-want').parent().show();
+}
+
+function checkDinner(event)
+{
+    if(jQuery(event.target).val() == 0)
+        $('#cb-form-dinner-choice').val(0).parent().hide();
+    else
+        $('#cb-form-dinner-choice').parent().show();
 }

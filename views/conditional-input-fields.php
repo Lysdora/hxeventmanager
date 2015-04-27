@@ -27,12 +27,12 @@ if(!is_array($field->field_options))
                     {
                         grecaptcha.render(document.getElementById('g-recaptcha-hx'), 
                         {
-                            'sitekey': '6LfpDPUSAAAAABuso8aobSexea6A3Rs_FNv4tLAt',
+                            'sitekey': "<?php echo $field->field_options['captcha-public-key'] ?>",
                             'theme': 'light'
                         });
                     }
 
                     </script>
                    <script src='https://www.google.com/recaptcha/api.js?onload=renderCaptcha&render=explicit&hl=en' async defer></script>
-                    <div class="g-recaptcha" id="g-recaptcha-hx" data-sitekey="6LfpDPUSAAAAABuso8aobSexea6A3Rs_FNv4tLAt" data-theme="light"></div>                
+                    <div class="g-recaptcha" id="g-recaptcha-hx"></div>                
                 <?php endif; ?>

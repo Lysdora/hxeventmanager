@@ -270,7 +270,7 @@ class CustomBookings
     {
         $options = unserialize($row->field_options);
 
-        //error_log('row = '.print_r($row, true));
+        ////error_log('row = '.print_r($row, true));
 
         if(is_array($options) && count($options) > 0 && array_key_exists($row->field_data, $options))
             return stripslashes($options[$row->field_data]);
@@ -328,7 +328,7 @@ class CustomBookingsForm
 
     static function custom_form($EM_Event)
     {
-        //error_log(print_r($EM_Event, true));
+        ////error_log(print_r($EM_Event, true));
         $custom_fields = self::getCustomFormFields();
         include(CB_PLUGIN_PATH . 'views/booking_form.php');
     }
@@ -342,7 +342,9 @@ class CustomBookingsForm
         $data['event_ID'] = $EM_Booking->event_id;
         $data['booking_ID'] = $EM_Booking->booking_id;
 
-        error_log('data save booking: '.print_r($data, true));
+        //error_log('data save booking: '.print_r($data, true));
+
+        //error_log('request data save booking: '.print_r($_REQUEST, true));
 
         foreach($_REQUEST['cb'] as $custom_field_slug => $custom_field_data)
         {
@@ -357,7 +359,7 @@ class CustomBookingsForm
 
                 if($wpdb->update($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data, $where) === false)
                 {
-                    error_log('last query after update: '.$wpdb->last_query);
+                    //error_log('last query after update: '.$wpdb->last_query);
                     $error = new WP_Error('dberror', 'Couldn\'t update custom field with slug "'.$custom_field_slug.'"');
                     $EM_Booking->add_error('Couldn\'t update custom field with slug "'.$custom_field_slug.'"');
                     CustomBookings::show_message($error->get_error_message(), true);
@@ -394,7 +396,7 @@ class CustomBookingsForm
 
                     if($wpdb->update($wpdb->prefix.CustomBookings::$tablenames['field_data'], $data, $where) === false)
                     {
-                        error_log('last query after update: '.$wpdb->last_query);
+                        //error_log('last query after update: '.$wpdb->last_query);
                         $error = new WP_Error('dberror', 'Couldn\'t update custom field with slug "'.$custom_field_slug.'"');
                         CustomBookings::show_message($error->get_error_message(), true);
                         return false;
@@ -424,14 +426,47 @@ class CustomBookingsForm
 
         foreach($custom_fields as $field)
         {
-            if($field->field_required == '1')
+            ////error_log('field data available at validating booking = '.print_r($field, true));
+            ////error_log('grecaptcha data = '.$_POST['g-recaptcha-response']);
+
+            if($field->field_required == '1' && $field->field_type != 'captcha')
             {
                 if(!isset($_REQUEST['cb'][$field->field_slug]) || trim($_REQUEST['cb'][$field->field_slug]) == '')
                 {
                     $EM_Booking->add_error(__(sprintf('Field "%s" cannot be empty!', $field->field_label, $field->field_slug)));
                     $result = false;
-                }                
+                }
             }
+
+            //for the special case of captcha we are going to do some fancy stuff...
+            if($field->field_type == 'captcha' && $field->field_required == '1')
+            {
+                //there is a required captcha field that needs to be validated.
+
+                $field->field_options = unserialize($field->field_options);
+                $ch = curl_init();
+
+                curl_setopt($ch, CURLOPT_URL,"https://www.google.com/recaptcha/api/siteverify");
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS,
+                    "secret=".$field->field_options['captcha-secret-key']."&response=".$_POST['g-recaptcha-response']);
+
+                // receive server response ...
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+                $server_output = json_decode(curl_exec($ch));
+
+                //error_log('captcha response from server is '.print_r($server_output, true));
+
+                curl_close ($ch);
+
+                if(!$server_output->success)
+                {
+                    $EM_Booking->add_error(__(sprintf('Oops, did you forget to complete the Captcha?')));
+                    $result = false;
+                }
+            }                
+
         }
 
         return $result;
@@ -487,7 +522,7 @@ class CustomBookingsForm
                                 'WHERE event_ID = %d AND user_ID = %d AND '.$field_table.'.field_active = %d', $event_ID, $user_ID, 1);
         $results = $wpdb->get_results($query);
 
-        //error_log('last query = '.$wpdb->last_query);
+        ////error_log('last query = '.$wpdb->last_query);
 
         return $results;            
     }
@@ -526,14 +561,16 @@ class CustomBookingsFormEditor
         global $wpdb;
         $tablenames = CustomBookings::$tablenames;
 
-        if(!$wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['fields'].' WHERE field_slug = %s', $_GET['field'])))
+        if($wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['fields'].' WHERE field_slug = %s', $_GET['field'])) === FALSE)
         {
             CustomBookings::show_message('Field was NOT deleted (halted on first query)!', true);
+            //error_log('WPDB query error in delete_field(). Error was: '.$wpdb->last_error);
             include(CB_PLUGIN_PATH . 'views/form_editor.php');
         }
-        if(!$wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['field_data'].' WHERE field_slug = %s', $_GET['field'])))
+        if($wpdb->query($wpdb->prepare('DELETE FROM '.$wpdb->prefix.$tablenames['field_data'].' WHERE field_slug = %s', $_GET['field'])) === FALSE)
         {
             CustomBookings::show_message('Field was NOT deleted (halted on second query)!', true);
+            //error_log('WPDB query error in delete_field(). Error was: '.$wpdb->last_error);
             include(CB_PLUGIN_PATH . 'views/form_editor.php');
         }
         else
@@ -551,7 +588,7 @@ class CustomBookingsFormEditor
         {
             $data = CustomBookingsForm::getCustomFormField($_GET['field'], ARRAY_A);
             $data = $data[0];
-            //error_log(print_r($data, true));
+            ////error_log(print_r($data, true));
             include(CB_PLUGIN_PATH . 'views/new_edit_field.php');
         }
         else
@@ -560,12 +597,18 @@ class CustomBookingsFormEditor
             $data = $_POST;
             unset($data['submit']);
 
-            $validation = self::validate_custom_field();
+            //error_log('data at update field BEFORE VALIDATION = '.print_r($data, true));
+
+            $validation = self::validate_custom_field($data);
             if($validation === true)
             {
                 //validated, even!
                 $where = array('field_slug' => $data['field_slug']);
-                unset($data['field_type'], $data['field_options']);
+
+                if($data['field_type'] == 'captcha')
+                {
+                    $data = self::process_field_options($data);
+                }
 
                 if(!isset($data['field_required']))
                     $data['field_required'] = 0;
@@ -574,12 +617,13 @@ class CustomBookingsFormEditor
 
                 if($wpdb->update($wpdb->prefix.$tablenames['fields'], $data, $where) === false)
                 {
-                    CustomBookings::show_message('Adding went wrong!', true);
-                    error_log('last query after updating field = '.$wpdb->last_query);
+                    CustomBookings::show_message('Updating went wrong!', true);
+                    //error_log('last query after updating field = '.$wpdb->last_query);
                     include(CB_PLUGIN_PATH . 'views/new_edit_field.php');                                                
                 }
                 else
                 {
+                    //error_log('last query after updating field = '.$wpdb->last_query);
                     $_SESSION['cb_custom_fields_last_updated'] = time();
                     update_option('cb_custom_fields_last_updated', $_SESSION['cb_custom_fields_last_updated']);
                     CustomBookings::show_message('Field updated!');
@@ -602,26 +646,46 @@ class CustomBookingsFormEditor
             global $wpdb;
             //save the new field to database
 
-            $tablenames = CustomBookings::$tablenames;
             $data = $_POST;
             $data['field_slug'] = sanitize_title_with_dashes($data['field_label']);
-            $data['field_options'] = self::process_field_options($data['field_options']);
-            unset($data['submit']);
 
-            $result = $wpdb->insert($wpdb->prefix.$tablenames['fields'], $data);
+            //validate first
+            $validation_result = self::validate_custom_field($data);
 
-            if($result !== false)
+            if($validation_result !== TRUE)
             {
-                CustomBookings::show_message('New Field added!');
-                include(CB_PLUGIN_PATH . 'views/form_editor.php');
-                $_SESSION['cb_custom_fields_last_updated'] = time();
-                update_option('cb_custom_fields_last_updated', $_SESSION['cb_custom_fields_last_updated']);
+                //error_log('validation_result = '.gettype($validation_result));
+                //there were errors in the form...
+                foreach($validation_result as $validation_error)
+                {
+                    CustomBookings::show_message($validation_error, true);
+                }
+
+                include(CB_PLUGIN_PATH . 'views/new_edit_field.php');                
             }
             else
             {
-                CustomBookings::show_message('Adding went wrong!', true);
-                include(CB_PLUGIN_PATH . 'views/new_edit_field.php');                            
+                //there were no errors in the form, we can save it...
+                $data = self::process_field_options($data);
+                $tablenames = CustomBookings::$tablenames;
+                unset($data['submit']);
+
+                $result = $wpdb->insert($wpdb->prefix.$tablenames['fields'], $data);
+
+                if($result !== false)
+                {
+                    CustomBookings::show_message('New Field added!');
+                    include(CB_PLUGIN_PATH . 'views/form_editor.php');
+                    $_SESSION['cb_custom_fields_last_updated'] = time();
+                    update_option('cb_custom_fields_last_updated', $_SESSION['cb_custom_fields_last_updated']);
+                }
+                else
+                {
+                    CustomBookings::show_message('Adding went wrong!', true);
+                    include(CB_PLUGIN_PATH . 'views/new_edit_field.php');                            
+                }                
             }
+
         }
         else
         {
@@ -629,9 +693,23 @@ class CustomBookingsFormEditor
         }
     }
 
-    static function process_field_options($raw_options)
+    static function process_field_options($data)
     {
-        return serialize(preg_split('/\n|\r/', $raw_options, -1, PREG_SPLIT_NO_EMPTY));
+        //error_log('processing these field options: '.print_r($data['field_options'], true));
+
+        switch($data['field_type'])
+        {
+            case 'select':
+            $data['field_options'] = serialize(preg_split('/\n|\r/', $data['field_options']['dropdown-options'], -1, PREG_SPLIT_NO_EMPTY));
+            break;
+
+            case 'captcha':
+            $data['field_options'] = serialize($data['field_options']);
+            break;
+        }
+
+        return $data;
+
     }
 
     static function validate_custom_field($data = false)
@@ -641,16 +719,29 @@ class CustomBookingsFormEditor
 
         $errors = array();
 
+        //error_log('validate custom field data = '.print_r($data, true));
+
         if(!isset($data['field_label']) || trim($data['field_label']) == '')
         {
             $errors[] = __('Field Label can\'t be empty!');
         }
-        if( ($data['type'] == 'select' || $data['type'] == 'checkbox') && (!isset($data['field_options']) || trim($data['field_options']) == ''))
+        if( ($data['field_type'] == 'select' || $data['type'] == 'checkbox') && (!isset($data['field_options']) || trim($data['field_options']) == ''))
         {
             $errors[] = __('With a dropdown or checkbox element the field options can\'t be 0');
         }
+        if( $data['field_type'] == 'captcha' )
+        {
+            //error_log('captcha validation...');
+            if(trim($data['field_options']['captcha-secret-key']) == '' 
+                || trim($data['field_options']['captcha-public-key']) == '')
+            {
+                $errors[] = __('Enter Recaptcha public and private keys!');
+            }
+        }
 
-        return count($errors) > 1 ? $errors : true;
+        //error_log('after validation we have '.count($errors).' errors: '.print_r($errors, true));
+
+        return count($errors) > 0 ? $errors : true;
     }
 }
 
@@ -679,7 +770,7 @@ function display_bookings_table($atts, $content = NULL)
         }
     }
 
-    //error_log('display bookings_table :'.print_r($filtered_cols, true));
+    ////error_log('display bookings_table :'.print_r($filtered_cols, true));
 
     $bookings_table->cols = $colslugs;
     $bookings_table->cols_template = $filtered_cols;
@@ -689,5 +780,5 @@ function display_bookings_table($atts, $content = NULL)
 function write_queries()
 {
     global $wpdb;
-    error_log('Queries executed by wpdb: '.print_r($wpdb->queries, true));
+    //error_log('Queries executed by wpdb: '.print_r($wpdb->queries, true));
 }

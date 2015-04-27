@@ -444,23 +444,16 @@ class CustomBookingsForm
                 //there is a required captcha field that needs to be validated.
 
                 $field->field_options = unserialize($field->field_options);
-                $ch = curl_init();
+                $params = array(
+                    'secret' => $field->field_options['captcha-secret-key'],
+                    'response' => $_POST['g-recaptcha-response']
+                    );
 
-                curl_setopt($ch, CURLOPT_URL,"https://www.google.com/recaptcha/api/siteverify");
-                curl_setopt($ch, CURLOPT_POST, 1);
-                curl_setopt($ch, CURLOPT_POSTFIELDS,
-                    "secret=".$field->field_options['captcha-secret-key']."&response=".$_POST['g-recaptcha-response']);
-
-                // receive server response ...
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-                $server_output = json_decode(curl_exec($ch));
+                $server_response = rest_helper("https://www.google.com/recaptcha/api/siteverify", $params, "POST");
 
                 //error_log('captcha response from server is '.print_r($server_output, true));
 
-                curl_close ($ch);
-
-                if(!$server_output->success)
+                if(!$server_response->success)
                 {
                     $EM_Booking->add_error(__(sprintf('Oops, did you forget to complete the Captcha?')));
                     $result = false;
@@ -781,4 +774,58 @@ function write_queries()
 {
     global $wpdb;
     //error_log('Queries executed by wpdb: '.print_r($wpdb->queries, true));
+}
+
+
+//a Generic REST helper for sending and receiving data over the web to external APIs
+function rest_helper($url, $params = null, $verb = 'GET', $format = 'json')
+{
+  $cparams = array(
+    'http' => array(
+      'method' => $verb,
+      'ignore_errors' => true
+    )
+  );
+  if ($params !== null) {
+    $params = http_build_query($params);
+    if ($verb == 'POST') {
+      $cparams['http']['content'] = $params;
+    } else {
+      $url .= '?' . $params;
+    }
+  }
+
+  $context = stream_context_create($cparams);
+  $fp = fopen($url, 'rb', false, $context);
+  if (!$fp) {
+    $res = false;
+  } else {
+    // If you're trying to troubleshoot problems, try uncommenting the
+    // next two lines; it will show you the HTTP response headers across
+    // all the redirects:
+    // $meta = stream_get_meta_data($fp);
+    // var_dump($meta['wrapper_data']);
+    $res = stream_get_contents($fp);
+  }
+
+  if ($res === false) {
+    throw new Exception("$verb $url failed: $php_errormsg");
+  }
+
+  switch ($format) {
+    case 'json':
+      $r = json_decode($res);
+      if ($r === null) {
+        throw new Exception("failed to decode $res as json");
+      }
+      return $r;
+
+    case 'xml':
+      $r = simplexml_load_string($res);
+      if ($r === null) {
+        throw new Exception("failed to decode $res as xml");
+      }
+      return $r;
+  }
+  return $res;
 }

@@ -30,6 +30,11 @@ if(!is_array($field->field_options))
                             'sitekey': "<?php echo $field->field_options['captcha-public-key'] ?>",
                             'theme': 'light'
                         });
+
+                        jQuery('form[name="booking-form"]').on('submit', function()
+                        {
+                            grecaptcha.reset(); //when the user submits the form, the captcha needs to reset otherwise it breaks / invalidates
+                        })
                     }
 
                     </script>

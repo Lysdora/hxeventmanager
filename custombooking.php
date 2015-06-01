@@ -439,7 +439,9 @@ class CustomBookingsForm
             }
 
             //for the special case of captcha we are going to do some fancy stuff...
-            if($field->field_type == 'captcha' && $field->field_required == '1')
+            //this section should only be executed when NOT in Admin area (so on the registration page)
+            //because in the backend a captcha is not really necessary
+            if($field->field_type == 'captcha' && $field->field_required == '1' && !is_admin())
             {
                 //there is a required captcha field that needs to be validated.
 
@@ -718,9 +720,13 @@ class CustomBookingsFormEditor
         {
             $errors[] = __('Field Label can\'t be empty!');
         }
-        if( ($data['field_type'] == 'select' || $data['type'] == 'checkbox') && (!isset($data['field_options']) || trim($data['field_options']) == ''))
+        if( ($data['field_type'] == 'select' && (!isset($data['field_options']['dropdown-options']) || trim($data['field_options']['dropdown-options']) == '')))
         {
-            $errors[] = __('With a dropdown or checkbox element the field options can\'t be 0');
+            $errors[] = __('With a dropdown element you must at least give one option to choose from.');
+        }
+        if( ($data['field_type'] == 'checkbox' && (!isset($data['field_checkbox_label']) || trim($data['field_checkbox_label']) == '')))
+        {
+            $errors[] = __('With a checkbox element you must specify the label of the checkbox.');
         }
         if( $data['field_type'] == 'captcha' )
         {

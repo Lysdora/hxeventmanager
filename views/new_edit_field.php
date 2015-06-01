@@ -120,6 +120,6 @@ jQuery(function($)
             $('#field_checkbox_label_row').hide();
             break;
         }
-    });
+    }).trigger('change');
 });
 </script>

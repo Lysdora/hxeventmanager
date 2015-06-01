@@ -6,7 +6,7 @@ class CustomBookingsBookingsTable extends EM_Bookings_Table
     {
         parent::__construct();
         $this->limit = 1000;
-        $this->scope = 'all';
+        $this->scope = 'future'; //this is about the time of the event, not status (that is handled in the table view)
     }
 
     function get_booking_actions($EM_Booking)

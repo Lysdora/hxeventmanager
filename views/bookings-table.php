@@ -17,6 +17,8 @@
                         $rowno = 0;
                         $event_count = (!empty($event_count)) ? $event_count:0;
                         foreach ($this->bookings->bookings as $EM_Booking) {
+                            //If booking status is confirmed or pending payment, display. Otherwise skip.
+                            if($EM_Booking->booking_status == 0 || $EM_Booking->booking_status == 1):
                             ?>
                             <tr>
                                 <?php  /*
@@ -34,6 +36,7 @@
                                 ?>
                             </tr>
                             <?php
+                            endif;
                         }
                         ?>
                     </tbody>
